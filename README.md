@@ -8,13 +8,10 @@ Example:
 int main()
 {
   RSA::RSA rsa;
-  
   rsa.init();
-  
   if (rsa.good())
   {
     const auto enc = rsa.encrypt("Hello World!", rsa.public_key);
-    
     std::cout << rsa.decrypt(enc);
   }
 }
