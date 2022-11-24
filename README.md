@@ -4,7 +4,7 @@ RSA Class for C++
 Note that it needs the boost lib (https://www.boost.org/).
 
 Example:
-
+```
 int main()
 {
   RSA::RSA rsa;
@@ -15,3 +15,4 @@ int main()
     std::cout << rsa.decrypt(enc);
   }
 }
+```
