@@ -8,15 +8,10 @@
 #include <bitset>
 #include <random>
 #include <vector>
+#include <execution>
 #include <future>
 
-#define DEFAULT_BITS 4096
-#define DEFAULT_BLOCK 256
-#define DEFAULT_STRENGHT 50
-
-using namespace boost::multiprecision;
-
-typedef cpp_int number_t;
+typedef boost::multiprecision::cpp_int number_t;
 
 #ifndef _FASTPOW_
 #define _FASTPOW_
@@ -61,203 +56,68 @@ constexpr std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec)
 {
     for (size_t i = 0; i < vec.size() - 1; ++i)
         out << vec[i] << ", ";
-    out << vec[vec.size() - 1];
-    return out;
+    return out << vec[vec.size() - 1];
 }
 
 #endif // !_VECPP_
 
 namespace RSA
 {
-    inline bool Miller_Rabin(number_t d, const number_t& n)
-    {
-        std::random_device rd;
-        std::uniform_int_distribution<size_t> dist(2, size_t(-1));
-        
-        const number_t a = dist(rd) % (n - 4);
-        number_t x = pow(a, d, n);
-
-        if (x == 1 || x == n - 1)
-        {
-            return true;
-        }
-
-        while (d != n - 1)
-        {
-            x = (x * x) % n;
-            d *= 2;
-
-            if (x == 1)
-            {
-                return false;
-            }
-            else if (x == n - 1)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    inline bool is_prime(const number_t& n, const uint32_t& strenght) noexcept
-    {
-        if (n == 2 || n == 3)
-            return true;
-        if (n <= 1 || n % 2 == 0 || n % 3 == 0)
-            return false;
-
-        number_t d = n - 1;
-        while (d % 2 == 0)
-        { 
-            d /= 2; 
-        }
-
-        for (uint32_t i = 0; i < strenght; ++i)
-        {
-            if (Miller_Rabin(d, n) == false)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    inline number_t __fastcall random_number(uint32_t bits)
-    {
-        constexpr std::string_view nums = "0123456789";
-
-        bits = bits >> 3; // divided by 8
-
-        std::random_device rd;
-        std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<size_t> dist(0, nums.size() - 1);
-
-        std::string str; str.reserve(bits);
-
-        do
-        {
-            str = nums[dist(gen)];
-        } while (str[0] == '0');
-
-        while (--bits)
-        {
-            str.push_back(nums[dist(gen)]);
-        }
-
-        return number_t(str);
-    }
-
-    inline number_t random_possible_prime(const uint32_t bits) noexcept
-    {
-        while (true)
-        {
-            const number_t num(random_number(bits));
-
-            if (num <= 1 || num == 2 || num == 3)
-                return num;
-            if (num % 2 == 0 || num % 3 == 0)
-                continue;
-            
-            bool passed = true;
-            for (short i = 4; i < 89; ++i)
-            {
-                if (num % i == 0 && num != i)
-                {
-                    passed = false;
-                    break;
-                }
-            }
-            
-            if (!passed)
-                continue;
-            else
-                return num;
-        }
-    }
-
-    inline number_t random_prime(const uint32_t bits = DEFAULT_BITS, const uint32_t strenght = DEFAULT_STRENGHT)
-    {
-        while (true)
-        {
-            const number_t num(random_possible_prime(bits));
-            if (is_prime(num, strenght))
-            {
-                return num;
-            }
-        }
-    }
-
     class RSA
     {
     private:
-        uint32_t block  = DEFAULT_BLOCK;
-        uint32_t bits   = DEFAULT_BITS;
+        uint32_t block = DEFAULT_BLOCK;
+        uint32_t bits = DEFAULT_BITS;
         bool bGood = false;
-    public:
-        number_t p, q, n, phi, d;
-        size_t e;
 
+        constexpr static uint32_t DEFAULT_BITS = 4096;
+        constexpr static uint32_t DEFAULT_BLOCK = 256;
+        constexpr static uint32_t DEFAULT_STRENGHT = 50;
+
+    public:
+        number_t p, q, n, phi, d, e;
         std::array<number_t, 2> public_key;
         std::array<number_t, 2> private_key;
 
-        RSA()
-        {
+    public:
+        constexpr RSA() = default;
 
-        }
-
-        RSA(const uint32_t key_bits, const uint32_t block_size = DEFAULT_BLOCK)
-            :block(block_size)
+        constexpr RSA(const uint32_t key_bits, const uint32_t block_size = DEFAULT_BLOCK)
+            :block(block_size), bits(key_bits)
         {
-            if (!block_size || !key_bits || key_bits < block_size * 8 || key_bits % 8 != 0)
-            {
+            if (!block_size || !key_bits || key_bits < block_size * 8 || key_bits % 8 != 0) {
                 throw std::runtime_error("");
             }
-            else
-            {
-                bits = key_bits;
-            }
         }
 
-        ~RSA()
-        {
-            bGood       = false;
-            bits        = DEFAULT_BITS;
-            block       = DEFAULT_BLOCK;
-            p           = 0;
-            q           = 0;
-            n           = 0;
-            phi         = 0;
-            e           = 0;
-            d           = 0;
-            public_key  = { 0, 0 };
-            private_key = { 0, 0 };
-        }
-
-        constexpr bool good()
+        constexpr const bool& good() const
         {
             return bGood;
         }
 
-        constexpr uint32_t blocksize()
+        constexpr operator bool() const
+        {
+            return bGood;
+        }
+
+        constexpr const uint32_t& blocksize() const
         {
             return block;
         }
 
-        constexpr uint32_t keysize()
+        constexpr const uint32_t& keysize() const
         {
             return bits;
         }
-        
-        void set_and_init(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t strenght = DEFAULT_STRENGHT)
+
+        inline void set_and_init(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t strenght = DEFAULT_STRENGHT)
         {
             set(key_bits, block_size);
             init(strenght);
             return;
         }
 
-        void set(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK)
+        inline void set(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK)
         {
             if (!block_size || !key_bits || key_bits < block_size * 8 || key_bits % 8 != 0)
             {
@@ -266,12 +126,12 @@ namespace RSA
             else
             {
                 //bits    = key_bits  ;
-                block   = block_size;
+                block = block_size;
             }
             return;
         }
 
-        void init(const uint32_t strenght = DEFAULT_STRENGHT)
+        inline void init(const uint32_t strenght = DEFAULT_STRENGHT)
         {
             std::random_device rd;
             std::mt19937_64 gen(rd());
@@ -290,11 +150,11 @@ namespace RSA
                 }
 
                 // generate p and q
-                const std::future<number_t> pf(std::async(random_prime, bits + rand1, strenght));
-                const std::future<number_t> qf(std::async(random_prime, bits + rand2, strenght));
+                std::future<number_t> pf(std::async(random_prime, bits + rand1, strenght));
+                std::future<number_t> qf(std::async(random_prime, bits + rand2, strenght));
 
-                p = pf._Get_value();
-                q = qf._Get_value();
+                p = pf.get();
+                q = qf.get();
 
                 // calculate N
                 n = p * q;
@@ -318,45 +178,46 @@ namespace RSA
                 }
 
                 //calculate d
-                d = inverse_mod();
+                d = inverse_mod(e, phi);
 
             } while ((e * d) % phi != 1);
 
-            public_key  = { e, n };
+            public_key =  { e, n };
             private_key = { d, n };
             bGood = true;
         }
 
-        std::vector<number_t> encrypt(const std::string str, const std::array<number_t, 2>& public_key)
+        inline std::vector<number_t> encrypt(const std::string str, const std::array<number_t, 2>& public_key)
         {
             const auto power = [](const number_t& num, const number_t& e, const number_t& n)
             {
                 return pow(num, e, n);
             };
 
-            if (str.empty())
-                return { 0 };
+            if (str.empty()) {
+                return std::vector<number_t>();
+            }
 
-            std::vector<number_t> result(create_block_vector(str));
-            std::vector<std::future<number_t>> threads; threads.reserve(result.size());
+            std::vector<number_t> result = create_block_vector(str, block);
+            std::vector< std::future<number_t> > threads;
+            threads.reserve(result.size());
 
-            for (const auto& i : result)
+            for (const auto& num : result)
             {
-                threads.emplace_back(std::async(power, i, public_key[0], public_key[1]));
+                threads.emplace_back(std::async(std::launch::async, power, num, public_key[0], public_key[1]));
             }
 
             result.clear();
-            result.shrink_to_fit();
 
-            for (const auto& thread : threads)
+            for (std::future<number_t>& thread : threads)
             {
-                result.emplace_back(thread._Get_value());
+                result.emplace_back(thread.get());
             }
 
             return result;
         }
 
-        std::string decrypt(const std::vector<number_t>& vec)
+        inline std::string decrypt(const std::vector<number_t>& vec)
         {
             const auto dec = [](const number_t& num, const number_t& d, const number_t& n, const uint32_t& blocksize)
             {
@@ -368,7 +229,7 @@ namespace RSA
                     {
                         if (i == '1')
                             i = '0';
-                        else 
+                        else
                             i = '1';
                     }
 
@@ -391,47 +252,50 @@ namespace RSA
 
                 std::string block(pow(num, d, n).str()), result;
 
-                for (size_t i = 0; i < blocksize; ++i)
+                std::string_view view = block;
+
+                for (uint32_t i = 0; i < blocksize; ++i)
                 {
-                    const long long num(std::atoll(block.substr(0, 8).c_str()));
-                    block = block.substr(8);
+                    const long long num = std::atoll(block.substr(0, 8).data());
+                    block = view.substr(8);
+                    view = block;
 
                     if (num == 11111111)
                         continue;
 
                     result.push_back(to_char(num));
                 }
-                
+
                 return result;
             };
 
-            const size_t    blocks      = vec.size();
-            const uint32_t  blocksize   = block / 8;
+            const size_t    blocks = vec.size();
+            const uint32_t  blocksize = block / 8;
 
             std::vector<std::future<std::string>> threads; threads.reserve(blocks);
 
-            for (const auto& i : vec)
+            for (const number_t& i : vec)
             {
                 threads.emplace_back(std::async(dec, i, d, n, blocksize));
             }
 
             std::string decrypted;
 
-            for (const auto& thread : threads)
+            for (std::future<std::string>& thread : threads)
             {
-                decrypted += thread._Get_value();
+                decrypted.append(thread.get());
             }
 
             return decrypted;
         }
 
-        std::vector<number_t> create_block_vector(const std::string str)
+        inline static std::vector<number_t> create_block_vector(const std::string& str, const uint32_t block)
         {
             const size_t blocksize = block / 8;
 
             std::string msg;
 
-            for (const auto& i : str)
+            for (const char& i : str)
             {
                 const std::bitset<8> bits(i);
                 msg += bits.to_string();
@@ -459,20 +323,21 @@ namespace RSA
             const size_t blocks = msg_size / blocksize;
             const size_t get_size = msg.size() / blocks;
 
-            std::vector<number_t> results; results.reserve(blocks);
+            std::vector<number_t> results;
+            results.reserve(blocks);
+
+            std::string_view view(msg);
 
             for (size_t i = 0; i < blocks; ++i)
             {
-                results.emplace_back(number_t(msg.substr(0, get_size)));
-                msg = msg.substr(get_size);
+                results.emplace_back(number_t(view.substr(0, get_size)));
+                msg = view.substr(get_size);
             }
 
             return results;
         }
 
-    private:
-
-        number_t egcd(const number_t& a, const number_t& b, number_t* x, number_t* y)
+        inline static number_t egcd(const number_t& a, const number_t& b, number_t* x, number_t* y)
         {
             if (a == 0) {
                 *x = 0, * y = 1;
@@ -488,9 +353,9 @@ namespace RSA
             return gcd;
         };
 
-        number_t inverse_mod()
+        inline static number_t inverse_mod(const number_t& e, const number_t& phi)
         {
-            number_t x, y;
+            number_t x = 0, y = 0;
             if (egcd(e, phi, &x, &y) == 1)
             {
                 return (x % phi + phi) % phi;
@@ -500,11 +365,130 @@ namespace RSA
                 return 0;
             }
         }
+
+        inline static number_t random_number(uint32_t bits)
+        {
+            constexpr static const char* nums = "0123456789";
+
+            bits >>= 3;
+
+            static std::random_device rd;
+            static std::mt19937_64 gen(rd());
+            static std::uniform_int_distribution<size_t> dist(0, 9);
+
+            std::string str;
+            str.reserve(bits);
+
+            do
+            {
+                str = nums[dist(gen)];
+            } while (str[0] == '0');
+
+            while (--bits)
+            {
+                str.push_back(nums[dist(gen)]);
+            }
+
+            return number_t(str);
+        }
+
+        inline static number_t random_possible_prime(const uint32_t bits) noexcept
+        {
+            while (true)
+            {
+                const number_t num(random_number(bits));
+
+                if (num <= 1 || num == 2 || num == 3)
+                    return num;
+                if (num % 2 == 0 || num % 3 == 0)
+                    continue;
+
+                bool passed = true;
+
+                for (int i = 4; i < 1000; ++i)
+                {
+                    if (num % i == 0 && num != i)
+                    {
+                        passed = false;
+                        break;
+                    }
+                }
+
+                if (!passed)
+                    continue;
+                else
+                    return num;
+            }
+        }
+
+        inline static number_t random_prime(const uint32_t bits, const uint32_t strenght)
+        {
+            while (true)
+            {
+                const number_t num(random_possible_prime(bits));
+                if (is_prime(num, strenght))
+                {
+                    return num;
+                }
+            }
+        }
+
+        inline static bool Miller_Rabin(number_t d, const number_t& n)
+        {
+            static std::random_device rd;
+            static std::uniform_int_distribution<size_t> dist(2, static_cast<size_t>(-1));
+
+            const number_t a = dist(rd) % (n - 4);
+            number_t x = pow(a, d, n);
+
+            if (x == 1 || x == n - 1)
+            {
+                return true;
+            }
+
+            while (d != n - 1)
+            {
+                x = (x * x) % n;
+                d *= 2;
+
+                if (x == 1)
+                {
+                    return false;
+                }
+                else if (x == n - 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        inline static bool is_prime(const number_t& n, const uint32_t& strenght) noexcept
+        {
+            if (n == 2 || n == 3)
+                return true;
+            if (n <= 1 || n % 2 == 0 || n % 3 == 0)
+                return false;
+
+            number_t d = n - 1;
+
+            while (d % 2 == 0)
+            {
+                d /= 2;
+            }
+
+            for (uint32_t i = 0; i < strenght; ++i)
+            {
+                if (Miller_Rabin(d, n) == false)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     };
 }
-
-#undef DEFAULT_BITS
-#undef DEFAULT_BLOCK
-#undef DEFAULT_STRENGHT
 
 #endif
