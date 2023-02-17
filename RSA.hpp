@@ -4,7 +4,6 @@
 #define _RSA_
 
 #include <boost/multiprecision/cpp_int.hpp>
-#include <boost/multiprecision/miller_rabin.hpp>
 #include <string>
 #include <bitset>
 #include <random>
