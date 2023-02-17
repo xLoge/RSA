@@ -69,14 +69,14 @@ public:
 	}
 };
 
-int main()
+void test1()
 {
 	constexpr std::string_view message = "Hello World!";
-	
-	RSA::RSA rsa;
+
+	RSA::RSA rsa(256, 16);
 
 	Benchmark(
-		"Generation",
+		"Generation (256 BIT)",
 		[&rsa]()
 		{
 			rsa.gen();
@@ -95,12 +95,12 @@ int main()
 			{
 				enc = rsa.encrypt(message, rsa.public_key);
 
-				std::cout << "Encypted: " << enc << '\n';
+		std::cout << "Encypted: " << enc << '\n';
 			}
 		);
 
 		std::cout << '\n';
-		
+
 		Benchmark(
 			"Decryption",
 			[&rsa, &enc]()
@@ -109,4 +109,79 @@ int main()
 			}
 		);
 	}
+
+	std::cout << '\n';
+}
+
+void test2()
+{
+	Benchmark(
+		"Generation of Key (128 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(128, 16);
+			rsa.gen();
+		}
+	);
+
+
+	Benchmark(
+		"Generation of Key (256 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(256, 16);
+			rsa.gen();
+		}
+	);
+
+	Benchmark(
+		"Generation of Key (512 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(512, 16);
+			rsa.gen();
+		}
+	);
+
+	Benchmark(
+		"Generation of Key (1024 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(1024, 16);
+			rsa.gen();
+		}
+	);
+
+	Benchmark(
+		"Generation of Key (2048 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(2048, 16);
+			rsa.gen();
+		}
+	);
+	
+	Benchmark(
+		"Generation of Key (4096 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(4096, 16);
+			rsa.gen();
+		}
+	);
+
+	Benchmark(
+		"Generation of Key (8192 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(8192, 16);
+			rsa.gen();
+		}
+	);
+}
+
+int main()
+{
+	test1();
+	test2();
 }
