@@ -66,7 +66,7 @@ namespace RSA
     {
         constexpr static inline uint32_t DEFAULT_BITS = 4096;
         constexpr static inline uint32_t DEFAULT_BLOCK = 256;
-        constexpr static inline uint32_t DEFAULT_STRENGHT = 25;
+        constexpr static inline uint32_t DEFAULT_TEST = 25;
     private:
         bool bGood = false;
         uint32_t block = DEFAULT_BLOCK;
@@ -82,14 +82,11 @@ namespace RSA
         std::array<number_t, 2> private_key;
 
     public:
-        constexpr RSA() = default;
+        RSA() = default;
 
-        constexpr RSA(const uint32_t key_bits, const uint32_t block_size = DEFAULT_BLOCK) 
-            :block(block_size), bits(key_bits)
+        RSA(const uint32_t key_bits, const uint32_t block_size = DEFAULT_BLOCK)
         {
-            if (!block_size || !key_bits || key_bits < block_size * 8 || key_bits % 8 != 0) {
-                throw std::runtime_error("");
-            }
+            set(key_bits, block_size);
         }
 
         constexpr operator bool() const noexcept
@@ -107,23 +104,35 @@ namespace RSA
             return bits;
         }
 
-        void set_and_gen(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t strenght = DEFAULT_STRENGHT)
+        void set_and_gen(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t prime_tests = DEFAULT_TEST)
         {
             set(key_bits, block_size);
-            gen(strenght);
+            gen(prime_tests);
         }
 
         void set(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK)
         {
-            if (!block_size || !key_bits || key_bits < block_size * 8 || key_bits % 8 != 0) {
-                throw std::runtime_error("");
+            if (block_size == 0) {
+                throw std::invalid_argument("block size can`t be 0");
             }
-            else {
-                block = block_size;
+            if (key_bits == 0) {
+                throw std::invalid_argument("key size can`t be 0");
             }
+            if (key_bits % 8 != 0 || block_size % 8 != 0) {
+                throw std::invalid_argument("both key and block size have to be dividable by 8");
+            }
+            if (block_size < 16) {
+                throw std::invalid_argument("block size should`t be 8 because each character will represent one number and thats equal to plain text (NOT SECURE!)");
+            }
+            if (key_bits < block_size * 8) {
+                throw std::runtime_error("key size can`t be smaller than the block size * 8 (It would cause undefined behaviour)");
+            }
+            
+            block = block_size;
+            bits = key_bits;
         }
 
-        void gen(const uint32_t strenght = DEFAULT_STRENGHT) noexcept
+        void gen(const uint32_t prime_tests = DEFAULT_TEST) noexcept
         {
             static std::random_device rd;
             static std::mt19937_64 gen(rd());
@@ -151,8 +160,8 @@ namespace RSA
                 }
 
                 // generate p and q
-                std::future<number_t> pf(std::async(random_prime, bits + rand1, strenght));
-                std::future<number_t> qf(std::async(random_prime, bits + rand2, strenght));
+                std::future<number_t> pf(std::async(random_prime, bits + rand1, prime_tests));
+                std::future<number_t> qf(std::async(random_prime, bits + rand2, prime_tests));
 
                 p = pf.get();
                 q = qf.get();
