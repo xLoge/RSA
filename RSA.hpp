@@ -44,7 +44,7 @@ namespace RSA
         return res;
     }
 
-    template <bool ERROR = false> 
+    template <bool ERROR = false>
     class RSA
     {
     protected:
@@ -103,7 +103,16 @@ namespace RSA
                 throw std::invalid_argument("key size can`t be 0");
             }
 
-            if (block_size < 16) {
+            if (block_size == DEFAULT_BLOCK) {
+                block_size = 16;
+                while (block_size * 8 < key_bits) {
+                    block_size += 8;
+                    if (block_size >= 192) {
+                        break;
+                    }
+                }
+            }
+            else if (block_size < 16) {
                 if constexpr (ERROR) {
                     throw std::invalid_argument("block size should`t be 8 because each character will represent one number and thats equal to plain text (NOT SECURE!)");
                 }
@@ -420,7 +429,7 @@ namespace RSA
             };
 
             number_t num = random_number(bits);
-            
+
             while (!small_test(num)) {
                 num = random_number(bits);
             }
@@ -439,7 +448,7 @@ namespace RSA
                 {
                     number_t num(random_possible_prime(bits));
 
-                    do 
+                    do
                     {
                         if (is_prime(num, trys) && result.is_zero()) {
                             result = num;
@@ -490,7 +499,7 @@ namespace RSA
                     return true;
                 }
                 if (d < good) {
-                    d = d * 2;
+                    d *= 2;
                 }
             }
 
