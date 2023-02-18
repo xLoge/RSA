@@ -18,3 +18,5 @@ int main()
     }
 }
 ```
+
+Also you can Enable / Disable errors
