@@ -7,6 +7,7 @@
 #include <string>
 #include <bitset>
 #include <random>
+#include <execution>
 #include <vector>
 #include <future>
 
@@ -64,22 +65,26 @@ namespace RSA
 {
     class RSA
     {
+    protected:
         constexpr static inline uint32_t DEFAULT_BITS = 4096;
         constexpr static inline uint32_t DEFAULT_BLOCK = 256;
         constexpr static inline uint32_t DEFAULT_TEST = 25;
+        const static inline uint32_t thread_count = std::thread::hardware_concurrency();
+
     private:
         bool bGood = false;
         uint32_t block = DEFAULT_BLOCK;
         uint32_t bits = DEFAULT_BITS;
+
+    public:
         uint32_t e = 65537;
         number_t p, q;
         number_t n;
         number_t phi;
         number_t d;
 
-    public:
-        std::array<number_t, 2> public_key;
-        std::array<number_t, 2> private_key;
+        std::array<number_t, 2> public_key; //{ e, n };
+        std::array<number_t, 2> private_key; // { d, n };
 
     public:
         RSA() = default;
@@ -127,19 +132,19 @@ namespace RSA
             if (key_bits < block_size * 8) {
                 throw std::runtime_error("key size can`t be smaller than the block size * 8 (It would cause undefined behaviour)");
             }
-            
+
             block = block_size;
             bits = key_bits;
         }
 
         void gen(const uint32_t prime_tests = DEFAULT_TEST) noexcept
         {
-            static std::random_device rd;
-            static std::mt19937_64 gen(rd());
+            thread_local std::random_device rd;
+            thread_local std::mt19937_64 gen(rd());
             std::uniform_int_distribution<> dist(0, bits / 8);
 
             bGood = false;
-            uint32_t e = 65537;
+            e = 65537;
             p = 0;
             q = 0;
             n = 0;
@@ -160,11 +165,16 @@ namespace RSA
                 }
 
                 // generate p and q
-                std::future<number_t> pf(std::async(random_prime, bits + rand1, prime_tests));
-                std::future<number_t> qf(std::async(random_prime, bits + rand2, prime_tests));
-
-                p = pf.get();
-                q = qf.get();
+                if (thread_count > 1) {
+                    std::future<number_t> pf = std::async(&RSA::random_prime, this, bits + rand1, prime_tests);
+                    std::future<number_t> qf = std::async(&RSA::random_prime, this, bits + rand2, prime_tests);
+                    p = pf.get();
+                    q = qf.get();
+                }
+                else {
+                    p = random_prime(bits, prime_tests);
+                    q = random_prime(bits, prime_tests);
+                }
 
                 // calculate N
                 n = p * q;
@@ -186,7 +196,7 @@ namespace RSA
 
             } while ((e * d) % phi != 1);
 
-            public_key =  { e, n };
+            public_key = { e, n };
             private_key = { d, n };
             bGood = true;
         }
@@ -291,8 +301,7 @@ namespace RSA
         }
 
     private:
-
-        static std::vector<number_t> create_block_vector(const std::string_view& str, const uint32_t block)
+        std::vector<number_t> create_block_vector(const std::string_view& str, const uint32_t block) const noexcept
         {
             const size_t blocksize = block / 8;
 
@@ -302,7 +311,7 @@ namespace RSA
                 const std::bitset<8> bits(ch);
                 msg.append(bits.to_string());
             }
-            
+
             for (auto& i : msg) {
                 if (i == '0') {
                     i = '1';
@@ -335,7 +344,7 @@ namespace RSA
             return results;
         }
 
-        static number_t egcd(const number_t& a, const number_t& b, number_t* x, number_t* y)
+        number_t egcd(const number_t& a, const number_t& b, number_t* x, number_t* y) const noexcept
         {
             if (a == 0) {
                 *x = 0;
@@ -352,7 +361,7 @@ namespace RSA
             return gcd;
         };
 
-        static number_t inverse_mod(const number_t& e, const number_t& phi)
+        number_t inverse_mod(const number_t& e, const number_t& phi) const noexcept
         {
             number_t x = 0, y = 0;
             if (egcd(e, phi, &x, &y) == 1) {
@@ -361,31 +370,30 @@ namespace RSA
             return 0;
         }
 
-        static number_t random_number(const uint32_t bits)
+        number_t random_number(const uint32_t bits) const noexcept
         {
-            constexpr static std::string_view nums = "0123456789";
-
-            static std::mt19937_64 gen(std::random_device{}());
-            std::uniform_int_distribution<int> dist(0, 9);
+            thread_local std::random_device rd;
+            thread_local std::mt19937_64 gen(rd());
+            std::uniform_int_distribution<int> dist('0', '9');
 
             const uint32_t bytes = bits / 8;
 
-            char* const str = new char[bytes + 1];
+            std::string str(bytes, 0);
+
             do {
-                str[0] = nums[dist(gen)];
+                str[0] = static_cast<char>(dist(gen));
             } while (str[0] == '0');
-            for (uint32_t i = 1; i < bytes; ++i) {
-                str[i] = nums[dist(gen)];
+
+            for (uint32_t i = 1; i != bytes; ++i) {
+                str[i] = static_cast<char>(dist(gen));
             }
-            str[bytes] = 0;
-            number_t res(str);
-            delete[] str;
-            return res;
+
+            return number_t(str);
         }
 
-        static number_t random_possible_prime(const uint32_t bits) noexcept
+        number_t random_possible_prime(const uint32_t bits) const noexcept
         {
-            auto small_test = [bits](const number_t& num) -> bool
+            auto small_test = [bits](const number_t& num) noexcept -> bool
             {
                 if (bits == 8) {
                     if (num <= 1 || num == 2 || num == 3) {
@@ -394,8 +402,10 @@ namespace RSA
                 }
 
                 for (uint32_t i = 2; i != 10000; ++i) {
-                    if (num % i == 0 && num != i) {
-                        return false;
+                    if (num % i == 0) {
+                        if (num != i) {
+                            return false;
+                        }
                     }
                 }
 
@@ -403,33 +413,61 @@ namespace RSA
             };
 
             number_t num = random_number(bits);
-
-            while (small_test(num) == false) {
+            
+            while (!small_test(num)) {
                 num = random_number(bits);
             }
 
             return num;
         }
 
-        static number_t random_prime(const uint32_t bits, const uint32_t trys)
+        number_t random_prime(const uint32_t bits, const uint32_t trys) const noexcept
         {
-            number_t num = random_possible_prime(bits);
+            if (thread_count > 4) {
+                static const uint32_t _thread_count = (thread_count - 2) / 2;
 
-            while (is_prime(num, trys) == false) {
-                num = random_possible_prime(bits);
+                number_t result;
+
+                auto search_thread = [this, bits, trys, &result]() noexcept -> void
+                {
+                    number_t num(random_possible_prime(bits));
+
+                    do 
+                    {
+                        if (is_prime(num, trys) && result.is_zero()) {
+                            result = num;
+                            return;
+                        }
+                        else {
+                            num = random_possible_prime(bits);
+                        }
+                    } while (result.is_zero());
+                };
+
+                std::vector<std::future<void>> threads(_thread_count);
+                for (auto& thrd : threads) {
+                    thrd = std::async(std::launch::async, search_thread);
+                }
+                return result;
             }
-
-            return num;
+            else {
+                number_t num(random_possible_prime(bits));
+                while (!is_prime(num, trys)) {
+                    num = random_possible_prime(bits);
+                }
+                return num;
+            }
         }
 
-        static bool miller_rabin(number_t d, const number_t& n)
+        bool miller_rabin(number_t d, const number_t& n) const noexcept
         {
-            static std::mt19937_64 gen(std::random_device{}());
+            thread_local std::random_device rd;
+            thread_local std::mt19937_64 gen(rd());
             std::uniform_int_distribution<size_t> dist(2, static_cast<size_t>(-1));
 
             const number_t good = n - 1;
-            const number_t a = dist(gen) % (n - 4);
-            number_t x = boost::multiprecision::powm(a, d, n);
+            const number_t a = dist(gen) % n;
+            number_t x = pow(a, d, n);
 
             if (x == 1 || x == n - 1) {
                 return true;
@@ -452,7 +490,7 @@ namespace RSA
             return false;
         }
 
-        static bool is_prime(const number_t& n, const uint32_t trys) noexcept
+        bool is_prime(const number_t& n, const uint32_t trys) const noexcept
         {
             if (n == 2 || n == 3) {
                 return true;
@@ -462,7 +500,7 @@ namespace RSA
             }
 
             number_t d = n - 1;
-            
+
             while (d % 2 == 0) {
                 d /= 2;
             }
