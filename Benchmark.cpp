@@ -71,9 +71,9 @@ public:
 
 void test1()
 {
-	constexpr std::string_view message = "Hello World!";
+	std::string_view message = "Hello World!";
 
-	RSA::RSA rsa(256, 16);
+	RSA::RSA rsa(256);
 
 	Benchmark(
 		"Generation (256 BIT)",
@@ -95,7 +95,7 @@ void test1()
 			{
 				enc = rsa.encrypt(message, rsa.public_key);
 
-		std::cout << "Encypted: " << enc << '\n';
+				std::cout << "Encypted: " << enc << '\n';
 			}
 		);
 
@@ -189,12 +189,12 @@ void test2()
 	);
 }
 
+
 int main()
 {
 	//Note that these results are RANDOM in therms of time the generation can take one millisecond or just 100 second for example.
-
 	test1();
 	test2();
-
+	
 	std::cin.get();
 }
