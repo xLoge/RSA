@@ -1,5 +1,5 @@
 #include <iostream>
-#include "RSA.hpp"
+#include <custom/rsa.hpp>
 
 class Timer
 {
@@ -116,7 +116,7 @@ void test1()
 void test2()
 {
 	Benchmark(
-		"Generation of Key (128 BIT) ",
+		"Generation of Key (128  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(128, 16);
@@ -126,7 +126,7 @@ void test2()
 
 
 	Benchmark(
-		"Generation of Key (256 BIT) ",
+		"Generation of Key (256  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(256, 16);
@@ -135,7 +135,7 @@ void test2()
 	);
 
 	Benchmark(
-		"Generation of Key (512 BIT) ",
+		"Generation of Key (512  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(512, 16);
@@ -162,7 +162,7 @@ void test2()
 	);
 
 	Benchmark(
-		"Generation of Key (2048 BIT)",
+		"Generation of Key (3072 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(3072, 16);
