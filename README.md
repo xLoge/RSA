@@ -21,6 +21,6 @@ int main()
 
 Also you can Enable / Disable errors
 ```
-RSA::RSA<true> // Enable Errors
-RSA::RSA<false> // Disable Errors (Default)
+RSA::RSA<true>      Errors Enabled
+RSA::RSA<false>     Errors Disabled (Default)
 ```
