@@ -9,7 +9,7 @@ private:
 
 public:
 
-	std::chrono::time_point<std::chrono::steady_clock> 
+	std::chrono::time_point<std::chrono::steady_clock>
 		start = std::chrono::high_resolution_clock::now(),
 		end;
 	std::chrono::duration<float> duration{};
@@ -25,7 +25,7 @@ public:
 			duration = end - start;
 
 			float ms = duration.count() * 1000.F;
-			std::cout << m_Name <<  " took: " << ms << "ms\n";
+			std::cout << m_Name << " took: " << ms << "ms\n";
 		}
 	}
 
@@ -53,7 +53,7 @@ public:
 			T.toggle_output();
 		}
 	}
-	
+
 	template <class Fn, class... Args>
 	explicit Benchmark(const char* _Name, Fn&& _Func, Args&&... _Args) {
 		Timer T(_Name);
@@ -116,30 +116,30 @@ void test1()
 void test2()
 {
 	Benchmark(
-		"Generation of Key (128 BIT)",
+		"Generation of Key (128 BIT) ",
 		[]()
 		{
 			RSA::RSA rsa(128, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 
 
 	Benchmark(
-		"Generation of Key (256 BIT)",
+		"Generation of Key (256 BIT) ",
 		[]()
 		{
 			RSA::RSA rsa(256, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (512 BIT)",
+		"Generation of Key (512 BIT) ",
 		[]()
 		{
 			RSA::RSA rsa(512, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 
@@ -148,7 +148,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(1024, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 
@@ -157,16 +157,25 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(2048, 16);
+	rsa.gen();
+		}
+	);
+
+	Benchmark(
+		"Generation of Key (2048 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(3072, 16);
 			rsa.gen();
 		}
 	);
-	
+
 	Benchmark(
 		"Generation of Key (4096 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(4096, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 
@@ -175,7 +184,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(8192, 16);
-			rsa.gen();
+	rsa.gen();
 		}
 	);
 }
@@ -184,4 +193,8 @@ int main()
 {
 	test1();
 	test2();
+
+	std::cout << "\nNote that these results are RANDOM in therms of time (8192 Bits can take 4 - 20 Seconds)\n";
+
+	std::cin.get();
 }
