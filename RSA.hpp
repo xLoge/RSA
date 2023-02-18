@@ -130,7 +130,12 @@ namespace RSA
                 }
 
                 while (key_bits < block_size * 8) {
-                    key_bits += 8;
+                    if (block_size > 16) {
+                        block_size -= 8;
+                    }
+                    else {
+                        key_bits += 8;
+                    }
                 }
             }
 
