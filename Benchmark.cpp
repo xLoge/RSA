@@ -120,7 +120,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(128, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -130,7 +130,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(256, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -139,7 +139,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(512, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -148,7 +148,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(1024, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -157,7 +157,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(2048, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -175,7 +175,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(4096, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 
@@ -184,17 +184,17 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(8192, 16);
-	rsa.gen();
+			rsa.gen();
 		}
 	);
 }
 
 int main()
 {
+	//Note that these results are RANDOM in therms of time the generation can take one millisecond or just 100 second for example.
+
 	test1();
 	test2();
-
-	std::cout << "\nNote that these results are RANDOM in therms of time (8192 Bits can take 4 - 20 Seconds)\n";
 
 	std::cin.get();
 }
