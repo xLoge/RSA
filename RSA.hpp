@@ -4,10 +4,10 @@
 #define _RSA_
 
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/random/random_device.hpp>
+#include <boost/random.hpp>
 #include <string>
 #include <bitset>
-#include <random>
-#include <execution>
 #include <vector>
 #include <future>
 
@@ -68,7 +68,7 @@ namespace RSA
     protected:
         constexpr static inline uint32_t DEFAULT_BITS = 4096;
         constexpr static inline uint32_t DEFAULT_BLOCK = 256;
-        constexpr static inline uint32_t DEFAULT_TEST = 25;
+        constexpr static inline uint32_t DEFAULT_TEST = 4;
         const static inline uint32_t thread_count = std::thread::hardware_concurrency();
 
     private:
@@ -109,10 +109,10 @@ namespace RSA
             return bits;
         }
 
-        void set_and_gen(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t prime_tests = DEFAULT_TEST)
+        void set_and_gen(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK, const uint32_t trys = DEFAULT_TEST)
         {
             set(key_bits, block_size);
-            gen(prime_tests);
+            gen(trys);
         }
 
         void set(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK)
@@ -137,11 +137,11 @@ namespace RSA
             bits = key_bits;
         }
 
-        void gen(const uint32_t prime_tests = DEFAULT_TEST) noexcept
+        void gen(const uint32_t trys = DEFAULT_TEST) noexcept
         {
-            thread_local std::random_device rd;
-            thread_local std::mt19937_64 gen(rd());
-            std::uniform_int_distribution<> dist(0, bits / 8);
+            thread_local boost::random::random_device rd;
+            thread_local boost::random::mt19937_64 gen(rd());
+            boost::random::uniform_int_distribution<uint32_t> dist(0, bits / 8);
 
             bGood = false;
             e = 65537;
@@ -166,14 +166,14 @@ namespace RSA
 
                 // generate p and q
                 if (thread_count > 1) {
-                    std::future<number_t> pf = std::async(&RSA::random_prime, this, bits + rand1, prime_tests);
-                    std::future<number_t> qf = std::async(&RSA::random_prime, this, bits + rand2, prime_tests);
+                    std::future<number_t> pf = std::async(&RSA::random_prime, this, bits + rand1, trys);
+                    std::future<number_t> qf = std::async(&RSA::random_prime, this, bits + rand2, trys);
                     p = pf.get();
                     q = qf.get();
                 }
                 else {
-                    p = random_prime(bits, prime_tests);
-                    q = random_prime(bits, prime_tests);
+                    p = random_prime(bits, trys);
+                    q = random_prime(bits, trys);
                 }
 
                 // calculate N
@@ -372,9 +372,9 @@ namespace RSA
 
         number_t random_number(const uint32_t bits) const noexcept
         {
-            thread_local std::random_device rd;
-            thread_local std::mt19937_64 gen(rd());
-            std::uniform_int_distribution<int> dist('0', '9');
+            thread_local boost::random::random_device rd;
+            thread_local boost::random::mt19937_64 gen(rd());
+            boost::random::uniform_int_distribution<int> dist('0', '9');
 
             const uint32_t bytes = bits / 8;
 
@@ -461,12 +461,12 @@ namespace RSA
 
         bool miller_rabin(number_t d, const number_t& n) const noexcept
         {
-            thread_local std::random_device rd;
-            thread_local std::mt19937_64 gen(rd());
-            std::uniform_int_distribution<size_t> dist(2, static_cast<size_t>(-1));
+            thread_local boost::random::random_device rd;
+            thread_local boost::random::mt19937_64 mt(rd());
+            boost::random::uniform_int_distribution<number_t> dist(2, n - 4);
 
             const number_t good = n - 1;
-            const number_t a = dist(gen) % n;
+            const number_t a = dist(mt);
             number_t x = pow(a, d, n);
 
             if (x == 1 || x == n - 1) {
