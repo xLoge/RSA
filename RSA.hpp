@@ -13,61 +13,43 @@
 
 typedef boost::multiprecision::cpp_int number_t;
 
-#ifndef _FASTPOW_
-#define _FASTPOW_
-
-template<class T>
-constexpr T pow(T base, T exp)
-{
-    T res = 1;
-    while (exp > 0) {
-        if (exp & 1) {
-            res = (res * base);
-        }
-        exp >>= 1;
-        base = (base * base);
-    }
-    return res;
-}
-
-template<class T>
-constexpr T pow(T base, T exp, const T& mod)
-{
-    T res = 1;
-    base = base % mod;
-    while (exp > 0) {
-        if (exp & 1) {
-            res = (res * base) % mod;
-        }
-        exp >>= 1;
-        base = (base * base) % mod;
-    }
-    return res;
-}
-
-#endif // !_FASTPOW_
-
-#ifndef _VECPP_
-#define _VECPP_
-
-template<class T>
-constexpr std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec)
-{
-    for (size_t i = 0; i < vec.size() - 1; ++i) {
-        out << vec[i] << ", ";
-    }
-    return out << vec[vec.size() - 1];
-}
-
-#endif // !_VECPP_
-
 namespace RSA
 {
+    template<class Ty>
+    constexpr Ty pow(Ty base, Ty exp)
+    {
+        Ty res = 1;
+        while (exp > 0) {
+            if (exp & 1) {
+                res = (res * base);
+            }
+            exp >>= 1;
+            base *= base;
+        }
+        return res;
+    }
+
+    template<class Ty>
+    constexpr Ty pow(Ty base, Ty exp, const Ty& mod)
+    {
+        Ty res = 1;
+        base %= mod;
+        while (exp > 0) {
+            if (exp & 1) {
+                res = (res * base) % mod;
+            }
+            exp >>= 1;
+            base = (base * base) % mod;
+        }
+        return res;
+    }
+
+    template <bool ERROR = false> 
     class RSA
     {
     protected:
         constexpr static inline uint32_t DEFAULT_BITS = 4096;
-        constexpr static inline uint32_t DEFAULT_BLOCK = 256;
+        constexpr static inline uint32_t DEFAULT_BLOCK = -1;
         constexpr static inline uint32_t DEFAULT_TEST = 4;
         const static inline uint32_t thread_count = std::thread::hardware_concurrency();
 
@@ -78,10 +60,7 @@ namespace RSA
 
     public:
         uint32_t e = 65537;
-        number_t p, q;
-        number_t n;
-        number_t phi;
-        number_t d;
+        number_t p, q, n, d;
 
         std::array<number_t, 2> public_key; //{ e, n };
         std::array<number_t, 2> private_key; // { d, n };
@@ -115,7 +94,7 @@ namespace RSA
             gen(trys);
         }
 
-        void set(const uint32_t key_bits = DEFAULT_BITS, const uint32_t block_size = DEFAULT_BLOCK)
+        void set(uint32_t key_bits = DEFAULT_BITS, uint32_t block_size = DEFAULT_BLOCK)
         {
             if (block_size == 0) {
                 throw std::invalid_argument("block size can`t be 0");
@@ -123,14 +102,36 @@ namespace RSA
             if (key_bits == 0) {
                 throw std::invalid_argument("key size can`t be 0");
             }
-            if (key_bits % 8 != 0 || block_size % 8 != 0) {
-                throw std::invalid_argument("both key and block size have to be dividable by 8");
-            }
+
             if (block_size < 16) {
-                throw std::invalid_argument("block size should`t be 8 because each character will represent one number and thats equal to plain text (NOT SECURE!)");
+                if constexpr (ERROR) {
+                    throw std::invalid_argument("block size should`t be 8 because each character will represent one number and thats equal to plain text (NOT SECURE!)");
+                }
+
+                block_size = 16;
+            }
+            if (key_bits % 8 != 0 || block_size % 8 != 0) {
+                if constexpr (ERROR) {
+                    throw std::invalid_argument("both key and block size have to be dividable by 8");
+                }
+
+                while (key_bits % 8 != 0 || block_size % 8 != 0) {
+                    if (key_bits % 8 != 0) {
+                        ++key_bits;
+                    }
+                    if (block_size % 8 != 0) {
+                        ++block_size;
+                    }
+                }
             }
             if (key_bits < block_size * 8) {
-                throw std::runtime_error("key size can`t be smaller than the block size * 8 (It would cause undefined behaviour)");
+                if constexpr (ERROR) {
+                    throw std::runtime_error("key size can`t be smaller than the block size * 8 (It would cause undefined behaviour)");
+                }
+
+                while (key_bits < block_size * 8) {
+                    key_bits += 8;
+                }
             }
 
             block = block_size;
@@ -148,8 +149,9 @@ namespace RSA
             p = 0;
             q = 0;
             n = 0;
-            phi = 0;
             d = 0;
+
+            number_t phi;
 
             do
             {
@@ -514,6 +516,15 @@ namespace RSA
             return true;
         }
     };
+}
+
+template<class Ty>
+constexpr std::ostream& operator<<(std::ostream& out, const std::vector<Ty>& vec)
+{
+    for (size_t i = 0, end = vec.size() - 1; i < end; ++i) {
+        out << vec.at(i) << ", ";
+    }
+    return out << vec.back();
 }
 
 #endif
