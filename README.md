@@ -1,7 +1,6 @@
 # RSA-Encryption
-RSA Class for C++
 
-Note that it needs the boost lib (https://www.boost.org/).
+Note that it needs the boost library ( https://www.boost.org/ ).
 
 Example:
 ```
@@ -24,3 +23,6 @@ Also you can Enable / Disable errors
 RSA::RSA<true>      Errors Enabled
 RSA::RSA<false>     Errors Disabled (Default)
 ```
+
+#Speed
+
