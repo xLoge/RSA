@@ -8,7 +8,7 @@ int main()
 {
     RSA::RSA rsa;
     
-    rsa.gen();
+    rsa.setup();
     
     if (rsa)
     {
