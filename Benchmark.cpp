@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include "RSA.hpp"
 
 class Timer
@@ -76,10 +77,10 @@ void test1()
 	RSA::RSA rsa(256);
 
 	Benchmark(
-		"Generation (256 BIT)",
+		"setuperation (256 BIT)",
 		[&rsa]()
 		{
-			rsa.gen();
+			rsa.setup();
 		}
 	);
 
@@ -87,7 +88,7 @@ void test1()
 
 	if (rsa)
 	{
-		std::vector<number_t> enc;
+		std::vector<RSA::number_t> enc;
 
 		Benchmark(
 			"Encryption",
@@ -95,7 +96,7 @@ void test1()
 			{
 				enc = rsa.encrypt(message, rsa.public_key);
 
-				std::cout << "Encypted: " << enc << '\n';
+		std::cout << "Encypted: " << enc << '\n';
 			}
 		);
 
@@ -116,75 +117,75 @@ void test1()
 void test2()
 {
 	Benchmark(
-		"Generation of Key (128  BIT)",
+		"setuperation of Key (128  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(128, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 
 	Benchmark(
-		"Generation of Key (256  BIT)",
+		"setuperation of Key (256  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(256, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (512  BIT)",
+		"setuperation of Key (512  BIT)",
 		[]()
 		{
 			RSA::RSA rsa(512, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (1024 BIT)",
+		"setuperation of Key (1024 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(1024, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (2048 BIT)",
+		"setuperation of Key (2048 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(2048, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (3072 BIT)",
+		"setuperation of Key (3072 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(3072, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (4096 BIT)",
+		"setuperation of Key (4096 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(4096, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"Generation of Key (8192 BIT)",
+		"setuperation of Key (8192 BIT)",
 		[]()
 		{
 			RSA::RSA rsa(8192, 16);
-			rsa.gen();
+	rsa.setup();
 		}
 	);
 }
@@ -192,9 +193,9 @@ void test2()
 
 int main()
 {
-	//Note that these results are RANDOM in therms of time the generation can take one millisecond or just 100 second for example.
+	//Note that these results are RANDOM in therms of time the setuperation can take one millisecond or just 100 second for example.
 	test1();
 	test2();
-	
+
 	std::cin.get();
 }
