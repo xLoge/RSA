@@ -2,7 +2,7 @@
 
 Note that it needs the boost library ( https://www.boost.org/ ).
 
-* char - char16_t support
+* char, wchar_t, char8_t, char16_t support
 * automatic error handeling
 * multithreaded
 
