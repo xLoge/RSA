@@ -24,8 +24,9 @@ RSA::RSA<true>      Errors Enabled
 RSA::RSA<false>     Errors Disabled (Default)
 ```
 
-#Speed
+# Speed
 
+```
 * 128  BIT Key took: 0.3ms - 0.9ms
 * 256  BIT Key took: 0.4ms - 1.2ms
 * 512  BIT Key took: 1.2ms - 4.0ms
