@@ -2,6 +2,10 @@
 
 Note that it needs the boost library ( https://www.boost.org/ ).
 
+* char - char16_t support
+* automatic error handeling
+* multithreaded
+
 Example:
 ```
 int main()
@@ -18,15 +22,9 @@ int main()
 }
 ```
 
-Also you can Enable / Disable errors
-```
-RSA::RSA<true>      Errors Enabled
-RSA::RSA<false>     Errors Disabled (Default)
-```
-
 # Speed
 
-* Tested on I5 12400F
+* Tested on I5 12400F (6 Cores 12 Threads)
 
 ```
 128   BIT Key AVG of 100000 runs:   0.417ms
