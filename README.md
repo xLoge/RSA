@@ -2,9 +2,9 @@
 
 Note that it needs the boost library ( https://www.boost.org/ ).
 
-* char, wchar_t, char8_t, char16_t support
-* automatic error handeling
-* multithreaded
+* Support for char, wchar_t, char8_t, char16_t and char32_t
+* Automatic error handeling
+* Multithreaded
 
 Example:
 ```
