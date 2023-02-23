@@ -152,21 +152,20 @@ namespace RSA
         return val;
     }
 
-    constexpr int ctoi(const char ch) {
-        return static_cast<int>(ch - '0');
-    }
-
     template<class _char>
-    constexpr uint32_t blocksize_for(const _char* const str) noexcept {
-        auto _val = static_cast<uint32_t>(std::char_traits<_char>::length(str) * 8);
+    constexpr uint32_t blocksize_for(const _char* const str, const size_t count) noexcept {
+        auto _val = static_cast<uint32_t>(count * 8);
         while (_val % (16 * sizeof(_char))) { _val += 8; };
         return _val;
     }
 
-    constexpr uint32_t blocksize_for(const std::string_view& str) noexcept {
-        auto _val = static_cast<uint32_t>(str.size() * 8);
-        while (_val % 16) { _val += 8; };
-        return _val;
+    template<class _char>
+    constexpr uint32_t blocksize_for(const _char* const str) noexcept {
+        return blocksize_for<_char>(str, std::char_traits<_char>::length(str));
+    }
+
+    constexpr uint32_t blocksize_for(const auto& str) noexcept {
+        return blocksize_for(str.data(), str.size());
     }
 
     template <class char_type = char, bool throw_errors = false> 
@@ -198,7 +197,7 @@ namespace RSA
         std::tuple<number_t&, number_t&> private_key{ d, n };
 
     public:
-        constexpr RSA() {
+        constexpr RSA() noexcept {
             m_bits = DEFAULT_BITS;
             m_blocksize = 256;
         }
@@ -418,8 +417,8 @@ namespace RSA
 
         void setup(const uint32_t _trys = DEFAULT_TRYS) noexcept
         {
-            thread_local std::random_device rd;
-            thread_local std::mt19937_64 gen(rd());
+            std::random_device rd;
+            std::mt19937_64 mt(rd());
             boost::random::uniform_int_distribution<uint32_t> dist(0, m_bits / 8);
 
             m_setupdone = false;
@@ -432,46 +431,35 @@ namespace RSA
 
             do
             {
-                const uint32_t _mod = 8;
-                uint32_t _rand1 = dist(gen), _rand2 = dist(gen);
+                uint32_t _rand1 = dist(mt), _rand2 = dist(mt);
 
-                while (_rand1 % _mod != 0 || _rand2 % _mod != 0) {
-                    if (_rand1 % _mod != 0) {
-                        ++_rand1;
-                    }
-                    if (_rand2 % _mod != 0) {
-                        ++_rand2;
-                    }
+                while (_rand1 % 8 || _rand2 % 8) {
+                    if (_rand1 % 8) { ++_rand1; }
+                    if (_rand2 % 8) { ++_rand2; }
                 }
 
                 // generate p and q
                 if (thread_count >= 2) {
                     std::future<number_t> pf = std::async(&RSA::random_prime, this, m_bits + _rand1, _trys);
                     std::future<number_t> qf = std::async(&RSA::random_prime, this, m_bits + _rand2, _trys);
-                    p = pf.get();
-                    q = qf.get();
+                    p = pf._Get_value();
+                    q = qf._Get_value();
                 }
                 else {
                     p = random_prime(m_bits, _trys);
                     q = random_prime(m_bits, _trys);
                 }
 
-                // calculate N
                 n = p * q;
 
-                // calculate phi
                 _phi = (p - 1) * (q - 1);
 
-                // calculate e
-                if (gcd(e, _phi) != 1) {
-                    uint32_t i = 2;
-                    while (gcd(i, _phi) != 1) {
-                        ++i;
-                    }
-                    e = i;
+                if (mp::gcd(e, _phi) != 1) {
+                    uint32_t _e = 2;
+                    while (mp::gcd(_e, _phi) != 1) { ++_e; }
+                    e = _e;
                 }
 
-                //calculate d
                 d = inverse_mod(e, _phi);
 
             } while ((e * d) % _phi != 1);
@@ -481,11 +469,11 @@ namespace RSA
 
         std::vector<number_t> encrypt(const string_view& str, const std::tuple<uint32_t&, number_t&>& public_key) const
         {
-            check_setup();
-            
             auto async_pow = [public_key](const number_t& num) noexcept -> number_t {
                 return mp::powm(num, std::get<0>(public_key), std::get<1>(public_key));
             };
+            
+            check_setup();
 
             if (str.empty()) {
                 return { };
@@ -499,24 +487,21 @@ namespace RSA
                 threads[i] = std::async(std::launch::async, async_pow, block_vector[i]);
             }
 
-            for (size_t i = 0; i != threads.size(); ++i) {
+            for (size_t i = 0; i != block_vector.size(); ++i) {
                 result[i] = threads[i]._Get_value();
             }
+
             return result;
         }
 
         string decrypt(const std::vector<number_t>& message) const
         {
-            check_setup();
-
-            const size_t blocks = message.size();
-
             auto async_decrypt = [this](const number_t& _encrypted) noexcept -> string
             {
                 const std::string decrypted = mp::powm(_encrypted, d, n).convert_to<std::string>();
-                
+
                 string result;
-                result.reserve(m_blocksize);
+                result.reserve(m_blocksize * 2);
 
                 for (size_t i = 0; decrypted[i] != '0' || i > m_blocksize;) {
                     size_t _len = decrypted[i++] - '0';
@@ -532,24 +517,27 @@ namespace RSA
                 return result;
             };
 
-            std::vector<std::future<string>> threads(blocks);
+            check_setup();
+            
+            std::vector<std::future<string>> threads(message.size());
 
             for (size_t i = 0; i != message.size(); ++i) {
                 threads[i] = std::async(std::launch::async, async_decrypt, message[i]);
             }
 
             string decrypted;
-            decrypted.reserve(message.size() * m_blocksize);
+            decrypted.reserve(message.size() * m_blocksize * char_size);
 
-            for (const auto& thread : threads) {
+            for (const std::future<string>& thread : threads) {
                 decrypted.append(thread._Get_value());
             }
 
             return decrypted;
         }
 
-    //private:
-        void check_setup() const {
+    private:
+        void check_setup() const
+        {
             if (m_setupdone == false) {
                 throw std::exception("You have to call setup() before you use the class");
             }
@@ -563,10 +551,9 @@ namespace RSA
             std::vector<std::string> blocks;
 
             for (size_t i = 0;;) {
-                const std::string _num = std::to_string(str[i]);
-                size_t _nextsize = msg.size() + _num.size() + 1;
-
-                if (_num.front() == '-') { ++_nextsize; }
+                const std::string _num(std::to_string(str[i]));
+                const bool _negative = (_num.front() == '-');
+                const size_t _nextsize = msg.size() + _num.size() + 1 + _negative;
 
                 if (_nextsize > m_blocksize) {
                     msg.push_back('0');
@@ -574,17 +561,15 @@ namespace RSA
                     msg.clear();
                 }
                 
-                msg.reserve(_nextsize);
                 msg.append(std::to_string(_num.size()));
 
-                if (_num.front() == '-') {
+                if (_negative) {
                     msg.push_back('0');
                     msg.append(_num.substr(1));
                 }
                 else {
                     msg.append(_num);
                 }
-
 
                 if (++i == str.size()) {
                     msg.push_back('0');
@@ -705,17 +690,19 @@ namespace RSA
 
                 std::vector<std::future<void>> threads(_thread_count);
                 
-                for (auto& thrd : threads) {
-                    thrd = std::async(std::launch::async, search_thread);
+                for (std::future<void>& thread : threads) {
+                    thread = std::async(std::launch::async, search_thread);
                 }
 
                 return result;
             }
             else {
                 number_t num(random_possible_prime(_bits));
-                while (!is_prime(num, _trys)) {
+                
+                while (is_prime(num, _trys) == false) {
                     num = random_possible_prime(_bits);
                 }
+                
                 return num;
             }
         }
