@@ -183,6 +183,7 @@ namespace RSA
 
         using string = std::basic_string<char_type>;
         using string_view = std::basic_string_view<char_type>;
+        typedef std::tuple<number_t&, number_t&, number_t&, number_t&, uint32_t&, uint32_t&, uint32_t&> _export;
 
     private:
         bool m_setupdone = false;
@@ -198,7 +199,8 @@ namespace RSA
 
     public:
         constexpr RSA() {
-            set();
+            m_bits = DEFAULT_BITS;
+            m_blocksize = 256;
         }
 
         constexpr RSA(const uint32_t _bits, const uint32_t _blocksize = DEFAULT_BLOCKSIZE) {
@@ -206,7 +208,11 @@ namespace RSA
         }
 
         constexpr RSA(const std::string_view& _file) {
+            import_file(_file);
+        }
 
+        constexpr RSA(std::ifstream& _file) {
+            import_file(_file);
         }
 
         constexpr operator bool() const noexcept
@@ -293,13 +299,13 @@ namespace RSA
             m_blocksize = _blocksize;
         }
 
-        bool import_key(const std::string& _filename)
+        bool import_file(const std::string_view& _filename)
         {
-            std::ifstream _file(_filename);
-            return import_key(_file);
+            std::ifstream _file(_filename.data());
+            return import_file(_file);
         }
 
-        bool import_key(std::ifstream& _file)
+        bool import_file(std::ifstream& _file)
         {
             if (_file.good() == false) {
                 return false;
@@ -347,13 +353,13 @@ namespace RSA
             return true;
         }
 
-        bool export_key(const std::string& _filename)
+        bool export_file(const std::string_view& _filename)
         {
-            std::ofstream _file(_filename);
-            return export_key(_file);
+            std::ofstream _file(_filename.data());
+            return export_file(_file);
         }
 
-        bool export_key(std::ofstream& _file)
+        bool export_file(std::ofstream& _file)
         {
             if (m_setupdone == false) {
                 throw std::exception("You have to call setup() before you try to export a key.");
@@ -386,6 +392,22 @@ namespace RSA
             _file.close();
 
             return true;
+        }
+
+        void import_key(const _export& _key)
+        {
+            p = std::get<0>(_key);
+            q = std::get<1>(_key);
+            n = std::get<2>(_key);
+            d = std::get<3>(_key);
+            e = std::get<4>(_key);
+            m_bits = std::get<5>(_key);
+            m_blocksize = std::get<6>(_key);
+        }
+
+        _export export_key()
+        {
+            return { p, q, n, d, e, m_bits, m_blocksize };
         }
 
         void set_and_setup(const uint32_t _bits = DEFAULT_BITS, const uint32_t _blocksize = DEFAULT_BLOCKSIZE, const uint32_t _trys = DEFAULT_TRYS)
@@ -469,19 +491,17 @@ namespace RSA
                 return { };
             }
 
-            std::vector<number_t> block_vector = create_block_vector(str);
+            std::vector<number_t> block_vector(create_block_vector(str));
+            std::vector<number_t> result      (block_vector.size());
             std::vector<std::future<number_t>> threads(block_vector.size());
 
             for (size_t i = 0; i != block_vector.size(); ++i) {
                 threads[i] = std::async(std::launch::async, async_pow, block_vector[i]);
             }
 
-            std::vector<number_t> result(threads.size());
-
             for (size_t i = 0; i != threads.size(); ++i) {
                 result[i] = threads[i]._Get_value();
             }
-
             return result;
         }
 
@@ -499,15 +519,14 @@ namespace RSA
                 result.reserve(m_blocksize);
 
                 for (size_t i = 0; decrypted[i] != '0' || i > m_blocksize;) {
-                    const size_t _len = ctoi(decrypted[i]);
-                    i += 1;
-
-                    const std::string sub = decrypted.substr(i, _len);
+                    size_t _len = decrypted[i++] - '0';
+                    if (decrypted[i] == '0' && _len > 1) {
+                        result.push_back(-static_cast<char_type>(std::stoll(decrypted.substr(++i, --_len))));
+                    }
+                    else {
+                        result.push_back(static_cast<char_type>(atoux<size_t>(decrypted.substr(i, _len).c_str())));
+                    }
                     i += _len;
-
-                    const size_t dec = atoux<size_t>(sub.c_str());
-
-                    result.push_back(static_cast<char_type>(dec));
                 }
 
                 return result;
@@ -529,8 +548,8 @@ namespace RSA
             return decrypted;
         }
 
-    private:
-        bool check_setup() const {
+    //private:
+        void check_setup() const {
             if (m_setupdone == false) {
                 throw std::exception("You have to call setup() before you use the class");
             }
@@ -545,9 +564,11 @@ namespace RSA
 
             for (size_t i = 0;;) {
                 const std::string _num = std::to_string(str[i]);
-                const size_t _nextsize = msg.size() + _num.size() + 1;
+                size_t _nextsize = msg.size() + _num.size() + 1;
 
-                if (_nextsize >= m_blocksize) {
+                if (_num.front() == '-') { ++_nextsize; }
+
+                if (_nextsize > m_blocksize) {
                     msg.push_back('0');
                     blocks.push_back(msg);
                     msg.clear();
@@ -555,7 +576,15 @@ namespace RSA
                 
                 msg.reserve(_nextsize);
                 msg.append(std::to_string(_num.size()));
-                msg.append(_num);
+
+                if (_num.front() == '-') {
+                    msg.push_back('0');
+                    msg.append(_num.substr(1));
+                }
+                else {
+                    msg.append(_num);
+                }
+
 
                 if (++i == str.size()) {
                     msg.push_back('0');
@@ -574,7 +603,7 @@ namespace RSA
             return results;
         }
 
-        number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) const noexcept
+        static number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) noexcept
         {
             if (a == 0) {
                 x = 0;
@@ -591,11 +620,11 @@ namespace RSA
             return gcd;
         };
 
-        number_t inverse_mod(const number_t& e, const number_t& phi) const noexcept
+        static number_t inverse_mod(const number_t& e, const number_t& phi) noexcept
         {
             number_t x = 0, y = 0;
             if (egcd(e, phi, x, y) == 1) {
-                return (x % phi + phi) % phi;
+                return ((x % phi) + phi) % phi;
             }
             return 0;
         }
@@ -644,7 +673,7 @@ namespace RSA
 
             number_t num = random_number(_bits);
             
-            while (!small_test(num)) {
+            while (small_test(num) == false) {
                 num = random_number(_bits);
             }
 
@@ -697,47 +726,39 @@ namespace RSA
             thread_local std::mt19937_64 mt(rd());
             boost::random::uniform_int_distribution<number_t> dist(2, n - 4);
 
-            const number_t good = n - 1;
-            const number_t a = dist(mt);
-            number_t x = mp::powm(a, d, n);
+            const number_t d_base(n - 1);
+            const number_t rand(dist(mt));
+            number_t x(mp::powm(rand, d, n));
 
-            if (x == 1 || x == n - 1) {
+            if (x == 1 || x == d_base) {
                 return true;
             }
 
-            while (d != good) {
+            while (d < d_base) {
                 x = (x * x) % n;
 
                 if (x == 1) {
                     return false;
                 }
-                if (x == good) {
+                if (x == d_base) {
                     return true;
                 }
-                if (d < good) {
-                    d = d * 2;
-                }
+
+                d *= 2;
             }
 
             return false;
         }
 
-        bool is_prime(const number_t& n, const uint32_t trys) const noexcept
+        bool is_prime(const number_t& n, const uint32_t _trys) const noexcept
         {
-            if (n == 2 || n == 3) {
-                return true;
-            }
-            if (n <= 1 || n % 2 == 0 || n % 3 == 0) {
-                return false;
-            }
-
             number_t d = n - 1;
 
             while (d % 2 == 0) {
                 d /= 2;
             }
 
-            for (uint32_t i = 0; i != trys; ++i) {
+            for (uint32_t i = 0; i != _trys; ++i) {
                 if (miller_rabin(d, n) == false) {
                     return false;
                 }
