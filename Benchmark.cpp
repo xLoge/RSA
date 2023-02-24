@@ -77,7 +77,7 @@ void test1()
 	RSA::RSA rsa(256);
 
 	Benchmark(
-		"setuperation (256 BIT)",
+		"Generation (256 BIT)",
 		[&rsa]()
 		{
 			rsa.setup();
@@ -117,74 +117,83 @@ void test1()
 void test2()
 {
 	Benchmark(
-		"setuperation of Key (128  BIT)",
+		"Generation of Key (128  BIT)",
 		[]()
 		{
-			RSA::RSA rsa(128, 16);
+			RSA::RSA rsa(128);
 	rsa.setup();
 		}
 	);
 
 
 	Benchmark(
-		"setuperation of Key (256  BIT)",
+		"Generation of Key (256  BIT)",
 		[]()
 		{
-			RSA::RSA rsa(256, 16);
+			RSA::RSA rsa(256);
 	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (512  BIT)",
+		"Generation of Key (512  BIT)",
 		[]()
 		{
-			RSA::RSA rsa(512, 16);
+			RSA::RSA rsa(512);
 	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (1024 BIT)",
+		"Generation of Key (1024 BIT)",
 		[]()
 		{
-			RSA::RSA rsa(1024, 16);
+			RSA::RSA rsa(1024);
 	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (2048 BIT)",
+		"Generation of Key (2048 BIT)",
 		[]()
 		{
-			RSA::RSA rsa(2048, 16);
+			RSA::RSA rsa(2048);
 	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (3072 BIT)",
+		"Generation of Key (3072 BIT)",
 		[]()
 		{
-			RSA::RSA rsa(3072, 16);
+			RSA::RSA rsa(3072);
 	rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (4096 BIT)",
+		"Generation of Key (4096 BIT)",
 		[]()
 		{
-			RSA::RSA rsa(4096, 16);
+			RSA::RSA rsa(4096);
 	rsa.setup();
+		}
+	);
+	
+		Benchmark(
+		"Generation of Key (6144 BIT)",
+		[]()
+		{
+			RSA::RSA rsa(6144);
+			rsa.setup();
 		}
 	);
 
 	Benchmark(
-		"setuperation of Key (8192 BIT)",
+		"Generation of Key (8192 BIT)",
 		[]()
 		{
-			RSA::RSA rsa(8192, 16);
+			RSA::RSA rsa(8192);
 	rsa.setup();
 		}
 	);
