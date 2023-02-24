@@ -11,6 +11,7 @@
 #include <vector>
 #include <tuple>
 #include <future>
+#include <thread>
 #include <fstream>
 
 template<class Ty, class ostream>
@@ -138,7 +139,9 @@ namespace RSA
 
     template <class what>
     constexpr what atoux(const char* str) {
+#if _HAS_CXX20
         static_assert(std::unsigned_integral<what>, "only unsigned types");
+#endif
         constexpr auto _max = std::numeric_limits<what>::max();
 
         what val = 0;
@@ -164,7 +167,8 @@ namespace RSA
         return blocksize_for<_char>(str, std::char_traits<_char>::length(str));
     }
 
-    constexpr uint32_t blocksize_for(const auto& str) noexcept {
+    template<class _str>
+    constexpr uint32_t blocksize_for(const _str& str) noexcept {
         return blocksize_for(str.data(), str.size());
     }
 
@@ -172,7 +176,7 @@ namespace RSA
     class RSA
     {
     protected:
-        constexpr static inline uint32_t DEFAULT_BITS = 4096;
+        constexpr static inline uint32_t DEFAULT_BITS = 3072;
         constexpr static inline uint32_t DEFAULT_TRYS = 4;
         constexpr static inline uint32_t DEFAULT_BLOCKSIZE = -1;
     
@@ -180,9 +184,9 @@ namespace RSA
         constexpr static inline size_t char_size = sizeof(char_type);
         const static inline uint32_t thread_count = std::thread::hardware_concurrency();
 
+        typedef std::tuple<number_t&, number_t&, number_t&, number_t&, uint32_t&, uint32_t&, uint32_t&> _export;
         using string = std::basic_string<char_type>;
         using string_view = std::basic_string_view<char_type>;
-        typedef std::tuple<number_t&, number_t&, number_t&, number_t&, uint32_t&, uint32_t&, uint32_t&> _export;
 
     private:
         bool m_setupdone = false;
@@ -501,7 +505,7 @@ namespace RSA
                 const std::string decrypted = mp::powm(_encrypted, d, n).convert_to<std::string>();
 
                 string result;
-                result.reserve(m_blocksize * 2);
+                result.reserve(m_blocksize * 2); 
 
                 for (size_t i = 0; decrypted[i] != '0' || i > m_blocksize;) {
                     size_t _len = decrypted[i++] - '0';
