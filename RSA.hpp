@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 #include <future>
+#include <bitset>
+#include <intrin.h>
 #include <thread>
 
 namespace RSA
