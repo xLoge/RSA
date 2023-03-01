@@ -24,7 +24,7 @@ int main()
 
 # Speed
 
-* Tested on I5 12400F (6 Cores 12 Threads)
+* Tested on I5 12400F (6 Cores 12 Threads with 4 Miller Rabin iterations)
 
 ```
 128   BIT Key AVG of 100000 runs:   0.417ms
