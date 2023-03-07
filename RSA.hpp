@@ -10,8 +10,6 @@
 #include <string>
 #include <vector>
 #include <future>
-#include <bitset>
-#include <intrin.h>
 #include <thread>
 
 namespace RSA
@@ -40,90 +38,6 @@ namespace RSA
 
     namespace detail
     {
-        class InstructionSet
-        {
-        public:
-            InstructionSet() {
-                std::array<int, 4> cpui{};
-
-                __cpuid(cpui.data(), 0);
-                nIds_ = cpui[0];
-
-                for (int i = 0; i <= nIds_; ++i)
-                {
-                    __cpuidex(cpui.data(), i, 0);
-                    data_.push_back(cpui);
-                }
-
-                char vendor[32];
-                memset(vendor, 0, sizeof(vendor));
-                *reinterpret_cast<int*>(vendor) = data_[0][1];
-                *reinterpret_cast<int*>(vendor + 4) = data_[0][3];
-                *reinterpret_cast<int*>(vendor + 8) = data_[0][2];
-                vendor_ = vendor;
-
-                if (vendor_ == "GenuineIntel") {
-                    isIntel_ = true;
-                }
-                else if (vendor_ == "AuthenticAMD") {
-                    isAMD_ = true;
-                }
-
-                if (nIds_ >= 1) {
-                    f_1_ECX_ = data_[1][2];
-                    f_1_EDX_ = data_[1][3];
-                }
-
-                if (nIds_ >= 7) {
-                    f_7_EBX_ = data_[7][1];
-                    f_7_ECX_ = data_[7][2];
-                }
-
-                __cpuid(cpui.data(), 0x80000000);
-                nExIds_ = cpui[0];
-
-                char brand[0x40];
-                memset(brand, 0, sizeof(brand));
-
-                for (int i = 0x80000000; i <= nExIds_; ++i)
-                {
-                    __cpuidex(cpui.data(), i, 0);
-                    extdata_.push_back(cpui);
-                }
-
-                // load bitset with flags for function 0x80000001
-                if (nExIds_ >= 0x80000001)
-                {
-                    f_81_ECX_ = extdata_[1][2];
-                    f_81_EDX_ = extdata_[1][3];
-                }
-
-                // Interpret CPU brand string if reported
-                if (nExIds_ >= 0x80000004)
-                {
-                    memcpy(brand, extdata_[2].data(), sizeof(cpui));
-                    memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
-                    memcpy(brand + 32, extdata_[4].data(), sizeof(cpui));
-                    brand_ = brand;
-                }
-            };
-
-            int nIds_ = 0;
-            int nExIds_ = 0;
-            std::string vendor_;
-            std::string brand_;
-            bool isIntel_ = 0;
-            bool isAMD_ = 0;
-            std::bitset<32> f_1_ECX_;
-            std::bitset<32> f_1_EDX_;
-            std::bitset<32> f_7_EBX_;
-            std::bitset<32> f_7_ECX_;
-            std::bitset<32> f_81_ECX_;
-            std::bitset<32> f_81_EDX_;
-            std::vector<std::array<int, 4>> data_;
-            std::vector<std::array<int, 4>> extdata_;
-        };
-
         // * Decimal to number
         template <class Ty = long long>
         constexpr Ty dton(const char* str) {
@@ -140,7 +54,7 @@ namespace RSA
             while (*str)
             {
                 if (*str < '0' || *str > '9')
-                    throw std::invalid_argument("only numeric strings");
+                    throw std::invalid_argument("only number strings");
 
                 const Ty temp = result * 10 + (*str++ - '0');
                 
@@ -184,7 +98,7 @@ namespace RSA
                     temp += 10 + *str++ - 'A';
                 }
                 else {
-                    throw("");
+                    throw std::invalid_argument("only hex number strings");
                 }
 
                 if (temp < result) {
@@ -202,7 +116,7 @@ namespace RSA
 
         namespace base64
         {
-            static constexpr std::string encode(const std::string data) {
+            std::string encode(const std::string data) {
                 constexpr char sEncodingTable[] = {
                   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                   'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -242,7 +156,7 @@ namespace RSA
                 return ret;
             }
 
-            static constexpr std::string decode(const std::string& input) {
+            std::string decode(const std::string& input) {
                 constexpr uint8_t kDecodingTable[] = {
                   64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
                   64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
@@ -268,16 +182,16 @@ namespace RSA
                 if (in_len % 4 != 0) return "Input data size is not a multiple of 4";
 
                 size_t out_len = in_len / 4 * 3;
-                if (input[in_len - 1] == '=') out_len--;
-                if (input[in_len - 2] == '=') out_len--;
+                if (input.at(in_len - 1) == '=') out_len--;
+                if (input.at(in_len - 2) == '=') out_len--;
 
                 out.resize(out_len);
 
                 for (size_t i = 0, j = 0; i < in_len;) {
-                    uint32_t a = input[i] == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input[i++])];
-                    uint32_t b = input[i] == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input[i++])];
-                    uint32_t c = input[i] == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input[i++])];
-                    uint32_t d = input[i] == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input[i++])];
+                    uint32_t a = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input.at(i++))];
+                    uint32_t b = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input.at(i++))];
+                    uint32_t c = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input.at(i++))];
+                    uint32_t d = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int>(input.at(i++))];
 
                     uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
 
@@ -287,165 +201,6 @@ namespace RSA
                 }
 
                 return out;
-            }
-        }
-
-        namespace random
-        {
-            static const InstructionSet _cpu_instructions;
-            inline const bool _has_RDRAND = _cpu_instructions.f_1_ECX_[30];
-            inline const bool _has_RDSEED = _cpu_instructions.f_7_EBX_[18];
-
-#ifdef _M_X64
-            using engine = std::mt19937_64;
-#else 
-            using engine = std::mt19937;
-#endif
-
-#ifdef _M_X64
-            static size_t _fast_rand64() {
-                if (_has_RDRAND) {
-                    size_t _out;
-                    while (!_rdrand64_step(&_out));
-                    return _out;
-                }
-                else {
-                    std::mt19937_64 mt(std::random_device{}());
-                    std::uniform_int_distribution<size_t> dist(0, -1);
-                    return dist(mt);
-                }
-            }
-
-            static size_t _rand64() {
-                if (_has_RDSEED) {
-                    size_t _out;
-                    while (!_rdseed64_step(&_out));
-                    return _out;
-                }
-                else {
-                    return _fast_rand64();
-                }
-            }
-#endif
-
-            static uint32_t _fast_rand32() {
-                if (_has_RDRAND) {
-                    uint32_t _out;
-                    while (!_rdrand32_step(&_out));
-                    return _out;
-                }
-                else {
-                    std::mt19937 mt(std::random_device{}());
-                    std::uniform_int_distribution<uint32_t> dist(0, -1);
-                    return dist(mt);
-                }
-            }
-
-            static uint32_t _rand32() {
-                if (_has_RDSEED) {
-                    uint32_t _out;
-                    while (!_rdseed32_step(&_out));
-                    return _out;
-                }
-                else {
-                    return _fast_rand32();
-                }
-            }
-
-            static size_t rand() noexcept {
-#ifdef _M_X64
-                return _rand64();
-#else 
-                return _rand32();
-#endif
-            }
-
-            static uint32_t rand32() noexcept {
-                return _rand32();
-            }
-
-#ifdef _M_X64
-            static size_t rand64() noexcept {
-                return _rand64();
-            }
-#endif
-
-            static size_t fast_rand() noexcept {
-#ifdef _M_X64
-                return _fast_rand64();
-#else 
-                return _fast_rand32();
-#endif
-            }
-
-            static uint32_t fast_rand32() noexcept {
-                return _fast_rand32();
-            }
-
-#ifdef _M_X64
-            static size_t fast_rand64() noexcept {
-                return _fast_rand64();
-            }
-#endif
-
-            static size_t rand_in_range(size_t _MIN, size_t _MAX) noexcept {
-                engine mt(_rand32());
-                std::uniform_int_distribution<size_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-
-            static uint32_t rand_in_range32(uint32_t _MIN, uint32_t _MAX) noexcept {
-                engine mt(_rand32());
-                std::uniform_int_distribution<uint32_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-
-#ifdef _M_X64
-            static size_t rand_in_range64(size_t _MIN, size_t _MAX) noexcept {
-                engine mt(_rand32());
-                std::uniform_int_distribution<size_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-#endif
-
-            static size_t fast_rand_in_range(size_t _MIN, size_t _MAX) noexcept {
-                engine mt(_fast_rand32());
-                std::uniform_int_distribution<size_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-
-            static size_t fast_rand_in_range32(uint32_t _MIN, uint32_t _MAX) noexcept {
-                engine mt(_fast_rand32());
-                std::uniform_int_distribution<uint32_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-
-#ifdef _M_X64
-            static size_t fast_rand_in_range64(size_t _MIN, size_t _MAX) noexcept {
-                engine mt(_fast_rand32());
-                std::uniform_int_distribution<size_t> dist(_MIN, _MAX);
-                return dist(mt);
-            }
-#endif
-
-            static double rand_double(double _MIN = 0., double _MAX = std::numeric_limits<double>::max())
-            {
-                return (static_cast<double>(rand_in_range(0, std::numeric_limits<uint32_t>::max())) / static_cast<double>(std::numeric_limits<uint32_t>::max())) * (_MAX - _MIN);
-            }
-
-            static double fast_rand_double(double _MIN = 0., double _MAX = std::numeric_limits<double>::max())
-            {
-                return (static_cast<double>(fast_rand_in_range(0, std::numeric_limits<uint32_t>::max())) / static_cast<double>(std::numeric_limits<uint32_t>::max())) * (_MAX - _MIN);
-            }
-
-            static float rand_float(float _MIN = 0.F, float _MAX = std::numeric_limits<float>::max())
-            {
-                return (static_cast<float>(rand_double(_MIN, _MAX)));
-            }
-
-            static float fast_rand_float(float _MIN = 0.F, float _MAX = std::numeric_limits<float>::max())
-            {
-                return (static_cast<float>(fast_rand_double(_MIN, _MAX)));
             }
         }
     }
@@ -472,17 +227,22 @@ namespace RSA
         return blocksize_for(str.data(), str.size());
     }
     
+    template<class _char, bool _throw>
+    void print(basic_rsa<_char, _throw> _rsa) {
+        std::cout << _rsa;
+    }
+
     template <class char_type = char, bool throw_errors = false> 
     class basic_rsa
     {
     protected:
-        constexpr static inline uint32_t DEFAULT_BITS = 3072;
-        constexpr static inline uint32_t DEFAULT_TRYS = -1;
-        constexpr static inline uint32_t DEFAULT_BLOCKSIZE = -1;
+        constexpr static inline uint32_t DEFAULT_BITS = static_cast<uint32_t>(3072);
+        constexpr static inline uint32_t DEFAULT_TRYS = static_cast<uint32_t>(-1);
+        constexpr static inline uint32_t DEFAULT_BLOCKSIZE = static_cast<uint32_t>(-1);
     
     private:
         constexpr static inline size_t char_size = sizeof(char_type);
-        const static inline uint32_t thread_count = std::thread::hardware_concurrency();
+        const static inline uint32_t thread_count = (std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency();
 
         typedef std::tuple<number_t&, number_t&, number_t&, number_t&, uint32_t&, uint32_t&, uint32_t&> _export;
         using string = std::basic_string<char_type>;
@@ -501,9 +261,8 @@ namespace RSA
         std::tuple<number_t&, number_t&> private_key{ d, n };
 
     public:
-        constexpr basic_rsa() noexcept {
-            m_bits = DEFAULT_BITS;
-            m_blocksize = 256;
+        constexpr basic_rsa() :m_bits(3072), m_blocksize(256) {
+
         }
 
         constexpr basic_rsa(const uint32_t _bits, const uint32_t _blocksize = DEFAULT_BLOCKSIZE) {
@@ -592,7 +351,7 @@ namespace RSA
             
             while (_bits < _blocksize * 4) {
                 if constexpr (throw_errors) {
-                    throw std::runtime_error("key size can`t be smaller than the block size (It would cause undefined behaviour)");
+                    throw std::runtime_error("key size can`t be smaller than the block size * 4 (It would cause undefined behaviour)");
                 }
                 else if (_blocksize > _min_blocksize) {
                     _blocksize -= _size;
@@ -620,41 +379,40 @@ namespace RSA
 
             std::string _line;
 
-            while (std::getline(_file, _line)) {
-                if (_line == std::string_view("-----BEGIN EXPORT-----")) {
-                    std::getline(_file, _line);
-                    std::string _data = detail::base64::decode(_line);
-
-                    size_t _find = _data.find(',');
-                    p = number_t(_data.substr(0, _find));
-                    _data = _data.substr(_find + 1);
-
-                    _find = _data.find(',');
-                    q = number_t(_data.substr(0, _find));
-                    _data = _data.substr(_find + 1);
-
-                    _find = _data.find(',');
-                    n = number_t(_data.substr(0, _find));
-                    _data = _data.substr(_find + 1);
-
-                    _find = _data.find(',');
-                    d = number_t(_data.substr(0, _find));
-                    _data = _data.substr(_find + 1);
-
-                    _find = _data.find(',');
-                    e = detail::dton<uint32_t>(_data.substr(0, _find).data());
-                    _data = _data.substr(_find + 1);
-
-                    _find = _data.find(',');
-                    m_bits = detail::dton<uint32_t>(_data.substr(0, _find).data());
-                    _data = _data.substr(_find + 1);
-
-                    m_blocksize = detail::dton<uint32_t>(_data.data());
-                    break;
+            do
+            {
+                if (!std::getline(_file, _line)) {
+                    _file.close();
+                    return false;
                 }
-            }
+            } while (_line != "-----BEGIN EXPORT-----");
+
+            if (std::getline(_file, _line))
+                p.assign(detail::base64::decode(_line));
+
+            if (std::getline(_file, _line))
+                q.assign(detail::base64::decode(_line));
+
+            if (std::getline(_file, _line))
+                n.assign(detail::base64::decode(_line));
+
+            if (std::getline(_file, _line))
+                d.assign(detail::base64::decode(_line));
+
+            if (std::getline(_file, _line))
+                e = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
+
+            if (std::getline(_file, _line))
+                m_bits = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
+
+            if (std::getline(_file, _line))
+                m_blocksize = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
 
             _file.close();
+            
+            // Check
+            set(m_bits, m_blocksize);
+
             m_setupdone = true;
 
             return true;
@@ -676,26 +434,18 @@ namespace RSA
                 return false;
             }
 
-            std::string _out;
-
-            _out.append(p.str());
-            _out.push_back(',');
-            _out.append(q.str());
-            _out.push_back(',');
-            _out.append(n.str());
-            _out.push_back(',');
-            _out.append(d.str());
-            _out.push_back(',');
-            _out.append(std::to_string(e));
-            _out.push_back(',');
-            _out.append(std::to_string(m_bits));
-            _out.push_back(',');
-            _out.append(std::to_string(m_blocksize));
-            _out.assign(detail::base64::encode(_out));
-
             _file << "-----BEGIN EXPORT-----\n";
-            _file << _out;
-            _file << "\n-----ENDOF EXPORT-----\n";
+
+            _file << detail::base64::encode(p.str()) << '\n';
+            _file << detail::base64::encode(q.str()) << '\n';
+            _file << detail::base64::encode(n.str()) << '\n';
+            _file << detail::base64::encode(d.str()) << '\n';
+            _file << detail::base64::encode(std::to_string(e)) << '\n';
+            _file << detail::base64::encode(std::to_string(m_bits)) << '\n';
+            _file << detail::base64::encode(std::to_string(m_blocksize)) << '\n';
+
+            _file << "-----END EXPORT-----\n";
+
             _file.close();
 
             return true;
@@ -717,57 +467,29 @@ namespace RSA
             return { p, q, n, d, e, m_bits, m_blocksize };
         }
 
-        void set_and_setup(const uint32_t _bits = DEFAULT_BITS, const uint32_t _blocksize = DEFAULT_BLOCKSIZE, const uint32_t _trys = DEFAULT_TRYS)
-        {
-            set(_bits, _blocksize);
-            setup(_trys);
-        }
-
         void setup(uint32_t _trys = DEFAULT_TRYS) noexcept
         {
             if (_trys == DEFAULT_TRYS) {
-                _trys = get_rabin_trys();
+                _trys = get_rabin_trys(m_bits);
             }
 
-            std::mt19937_64 mt(detail::random::rand());
-            std::uniform_int_distribution<uint32_t> dist(0, m_bits / 8);
-
             m_setupdone = false;
-            e = 65537;
-            p = 0;
-            q = 0;
-            n = 0;
-            d = 0;
 
             while (true)
             {
-                uint32_t _rand1 = dist(mt), _rand2 = dist(mt);
+                const auto pair = generate_prime_pair(m_bits, _trys);
 
-                while (_rand1 % 8 || _rand2 % 8) {
-                    if (_rand1 % 8) { ++_rand1; }
-                    if (_rand2 % 8) { ++_rand2; }
-                }
-
-                // generate p and q
-                if (thread_count >= 2) {
-                    std::future<number_t> pf = std::async(&basic_rsa::random_prime, this, m_bits + _rand1, _trys);
-                    std::future<number_t> qf = std::async(&basic_rsa::random_prime, this, m_bits + _rand2, _trys);
-                    p = pf.get();
-                    q = qf.get();
-                }
-                else {
-                    p = random_prime(m_bits, _trys);
-                    q = random_prime(m_bits, _trys);
-                }
+                p = pair.first;
+                q = pair.first;
 
                 n = p * q;
 
                 const number_t phi = (p - 1) * (q - 1);
 
-                if (boost::multiprecision::gcd(e, phi) != 1) {
-                    uint32_t _e = 2;
-                    while (boost::multiprecision::gcd(_e, phi) != 1) { ++_e; }
-                    e = _e;
+                e = 65537;
+
+                while (boost::multiprecision::gcd(e, phi) != 1) {
+                    ++e;
                 }
 
                 d = inverse_mod(e, phi);
@@ -780,50 +502,56 @@ namespace RSA
             m_setupdone = true;
         }
 
-        std::vector<number_t> encrypt(const string_view& str, const std::tuple<uint32_t&, number_t&>& public_key) const
+        std::vector<number_t> encrypt(const string_view& _str, const std::tuple<uint32_t&, number_t&>& _public_key) const
         {
-            auto async_pow = [public_key](const number_t& num) noexcept -> number_t {
-                return boost::multiprecision::powm(num, std::get<0>(public_key), std::get<1>(public_key));
+            auto pow_block = [_public_key](const number_t& _block) noexcept -> number_t {
+                return boost::multiprecision::powm(_block, std::get<0>(_public_key), std::get<1>(_public_key));
             };
             
             check_setup();
 
-            if (str.empty()) {
+            if (_str.empty()) {
                 return { };
             }
 
-            std::vector<number_t> block_vector(create_block_vector(str));
-            std::vector<number_t> result      (block_vector.size());
-            std::vector<std::future<number_t>> threads(block_vector.size());
+            std::vector<number_t> blocks(create_blocks(_str));
+            std::vector<number_t> result(blocks.size());
+            std::vector<std::future<number_t>> threads(blocks.size());
 
-            for (size_t i = 0; i != block_vector.size(); ++i) {
-                threads[i] = std::async(std::launch::async, async_pow, block_vector[i]);
+            for (size_t i = 0; i != blocks.size(); ++i) {
+                threads.at(i) = std::async(std::launch::async, pow_block, blocks.at(i));
             }
 
-            for (size_t i = 0; i != block_vector.size(); ++i) {
-                result[i] = threads[i].get();
+            for (size_t i = 0; i != blocks.size(); ++i) {
+                result.at(i) = threads.at(i).get();
             }
 
             return result;
         }
 
-        string decrypt(const std::vector<number_t>& message) const
+        string decrypt(const std::vector<number_t>& _encrypted) const
         {
-            auto async_decrypt = [this](const number_t& _encrypted) noexcept -> string
+            auto decrypt_block = [this](const number_t& _block) noexcept -> string
             {
-                const std::string decrypted = boost::multiprecision::powm(_encrypted, d, n).convert_to<std::string>();
+                const std::string decrypted = boost::multiprecision::powm(_block, d, n).convert_to<std::string>();
 
                 string result;
-                result.reserve(m_blocksize * 2); 
 
-                for (size_t i = 0; decrypted[i] != '0' || i > m_blocksize;) {
-                    size_t _len = decrypted[i++] - '0';
-                    if (decrypted[i] == '0' && _len > 1) {
-                        result.push_back(-static_cast<char_type>(detail::dton<long long>(decrypted.substr(++i, --_len).c_str())));
+                for (size_t i = 0; decrypted.at(i) != '0' || i > m_blocksize;)
+                {
+                    size_t _len = decrypted.at(i++) - '0';
+
+                    if (decrypted.at(i) == '0' && _len > 1) {
+                        const auto _chr = decrypted.substr(++i, --_len);
+                        const auto _dec = detail::dton<char_type>(_chr.data()) * (-1);
+                        result.push_back(_dec);
                     }
                     else {
-                        result.push_back(static_cast<char_type>(detail::dton<size_t>(decrypted.substr(i, _len).c_str())));
+                        const auto _chr = decrypted.substr(i, _len);
+                        const auto _dec = detail::dton<char_type>(_chr.data());
+                        result.push_back(_dec);
                     }
+
                     i += _len;
                 }
 
@@ -832,14 +560,14 @@ namespace RSA
 
             check_setup();
             
-            std::vector<std::future<string>> threads(message.size());
+            std::vector<std::future<string>> threads(_encrypted.size());
 
-            for (size_t i = 0; i != message.size(); ++i) {
-                threads[i] = std::async(std::launch::async, async_decrypt, message[i]);
+            for (size_t i = 0; i < _encrypted.size(); ++i) {
+                threads.at(i) = std::async(std::launch::async, decrypt_block, _encrypted.at(i));
             }
 
             string decrypted;
-            decrypted.reserve(message.size() * m_blocksize * char_size);
+            decrypted.reserve(_encrypted.size() * m_blocksize * char_size);
 
             for (std::future<string>& thread : threads) {
                 decrypted.append(thread.get());
@@ -848,23 +576,16 @@ namespace RSA
             return decrypted;
         }
 
-    private:
-        void check_setup() const
-        {
-            if (m_setupdone == false) {
-                throw std::exception("You have to call setup() before you use the class");
-            }
-        }
-
-        std::vector<number_t> create_block_vector(const string_view& str) const noexcept
+        std::vector<number_t> create_blocks(const string_view& _str) const noexcept
         {
             std::string msg;
             msg.reserve(m_blocksize * char_size);
 
             std::vector<std::string> blocks;
 
-            for (size_t i = 0;;) {
-                const std::string _num(std::to_string(str[i]));
+            for (size_t i = 0;;)
+            {
+                const std::string _num(std::to_string(_str.at(i)));
                 const bool _negative = (_num.front() == '-');
                 const size_t _nextsize = msg.size() + _num.size() + 1 + _negative;
 
@@ -873,7 +594,7 @@ namespace RSA
                     blocks.push_back(msg);
                     msg.clear();
                 }
-                
+
                 msg.append(std::to_string(_num.size()));
 
                 if (_negative) {
@@ -884,7 +605,7 @@ namespace RSA
                     msg.append(_num);
                 }
 
-                if (++i == str.size()) {
+                if (++i == _str.size()) {
                     msg.push_back('0');
                     blocks.push_back(msg);
                     break;
@@ -899,6 +620,14 @@ namespace RSA
             }
 
             return results;
+        }
+
+    private:
+        void __forceinline check_setup() const
+        {
+            if (m_setupdone == false) {
+                throw std::exception("You have to call setup() before you use the class");
+            }
         }
 
         static number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) noexcept
@@ -927,166 +656,161 @@ namespace RSA
             return 0;
         }
 
-        number_t random_number(const uint32_t _bits) const noexcept
+        static number_t random_number(const size_t _bits) noexcept
         {
-            static std::mt19937_64 gen(detail::random::rand());
+            std::mt19937_64 gen(std::random_device{ }());
             std::uniform_int_distribution<int> dist('0', '9');
 
-            const uint32_t bytes = _bits >> 3;
+            const size_t bytes = _bits >> 3;
 
             std::string str(bytes, 0);
 
             for (char& c : str) {
-                c = dist(gen);
+                c = static_cast<char>(dist(gen));
             }
 
-            while (str[0] == '0') {
-                str[0] = dist(gen);
+            while (str.at(0) == '0') {
+                str.at(0) = static_cast<char>(dist(gen));
             }
 
-            return number_t(str.data());
+            return number_t(str.c_str());
         }
 
-        number_t random_possible_prime(const uint32_t _bits) const noexcept
+        static std::pair<number_t, number_t> generate_prime_pair(size_t _bits, const size_t _trys) noexcept
         {
-            auto small_test = [_bits](const number_t& num) noexcept -> bool
-            {
-                for (uint32_t i = 2; i != 10000; ++i) {
-                    if (num % i == 0) {
-                        if (num != i) {
-                            return false;
-                        }
-                        else {
-                            return true;
-                        }
-                    }
-                }
+            number_t p, q;
 
-                return true;
+            std::mt19937_64 mt(std::random_device{ }());
+            std::uniform_int_distribution<uint32_t> dist(0, _bits / 8);
+
+            uint32_t rand_p = dist(mt), rand_q = dist(mt);
+
+            while (rand_p % 8 || rand_q % 8) {
+                if (rand_p % 8)
+                    ++rand_p;
+                if (rand_q % 8)
+                    ++rand_q;
+            }
+
+            _bits += rand_p;
+
+            bool has_p = false, has_q = false;
+
+            auto search_thread = [&]() noexcept -> void
+            {
+                number_t num = random_number(_bits);
+
+                do 
+                {
+                    if (is_prime(num, _trys)) {
+                        if (!has_p) {
+                            has_p = true;
+                            p = num;
+                            _bits -= rand_p;
+                            _bits += rand_q;
+                            continue;
+                        }
+
+                        if (!has_q) {
+                            has_q = true;
+                            q = num;
+                        }
+
+                        return;
+                    }
+                    else {
+                        num = random_number(_bits);
+                    }
+                } while (!has_p || !has_q);
             };
 
-            number_t num = random_number(_bits);
-            
-            while (small_test(num) == false) {
-                num = random_number(_bits);
-            }
+            std::vector< std::future<void> > threads;
 
-            return num;
+            for (size_t i = 0; i < thread_count; ++i)
+                threads.push_back(std::async(std::launch::async, search_thread));
+
+            for (const std::future<void>& thread : threads)
+                thread.wait();
+
+            return std::make_pair(std::move(p), std::move(q));
         }
 
-        number_t random_prime(const uint32_t _bits, const uint32_t _trys) const noexcept
+        static bool is_prime(const number_t& _num, const size_t _trys) noexcept
         {
-            if (thread_count > 4) {
-                static const uint32_t _thread_count = (thread_count - 2) / 2;
-
-                number_t result;
-
-                auto search_thread = [this, _bits, _trys, &result]() noexcept -> void
+            // Small Test
+            for (size_t i = 2; i < 1000; ++i)
+            {
+                if (_num % i == 0)
                 {
-                    number_t num(random_possible_prime(_bits));
-
-                    do 
-                    {
-                        if (is_prime(num, _trys) && result.is_zero()) {
-                            result = num;
-                            return;
-                        }
-                        else {
-                            num = random_possible_prime(_bits);
-                        }
-                    } while (result.is_zero());
-                };
-
-                std::vector<std::future<void>> threads(_thread_count);
-                
-                for (std::future<void>& thread : threads) {
-                    thread = std::async(std::launch::async, search_thread);
+                    if (_num != i) {
+                        return false;
+                    }
+                    else {
+                        break;
+                    }
                 }
-
-                return result;
             }
-            else {
-                number_t num(random_possible_prime(_bits));
-                
-                while (is_prime(num, _trys) == false) {
-                    num = random_possible_prime(_bits);
-                }
-                
-                return num;
-            }
-        }
 
-        uint32_t get_rabin_trys() const noexcept
-        {
-            return static_cast<uint32_t>(std::log(std::pow(m_bits, 3)));
-        }
-
-        bool is_prime(const number_t& n, const uint32_t _trys) const noexcept
-        {
-            const number_t d_base = n - 1;
+            const number_t d_base = _num - 1;
             number_t d = d_base;
 
-            size_t s = 0;
-            while (d % 2 == 0) {
+            size_t _divides = 0;
+            while (d % 2 == 0)
+            {
                 d /= 2;
-                ++s;
+                ++_divides;
             }
 
-            std::mt19937_64 mt(detail::random::rand());
-            boost::random::uniform_int_distribution<number_t> dist(2, n - 2);
+            std::mt19937_64 mt(std::random_device{ }());
+            boost::random::uniform_int_distribution<number_t> dist(2, _num - 2);
 
             for (size_t i = 0; i < _trys; ++i)
             {
-                number_t x = boost::multiprecision::powm(dist(mt), d, n);
-                
-                if (x == 1 || x == d_base) {
-                    continue;
-                }
-                
-                bool _continue = true;
-                
-                for (size_t j = 1; j < s; ++j)
-                {
-                    x = (x * x) % n;
+                const number_t rand = dist(mt);
+                number_t test = boost::multiprecision::powm(dist(mt), d, _num);
 
-                    if (x == d_base) {
+                if (test == 1 || test == d_base)
+                    continue;
+
+                bool _continue = true;
+
+                for (size_t j = 1; j < _divides; ++j)
+                {
+                    test = (test * test) % _num;
+
+                    if (test == d_base) {
                         _continue = false;
                         break;
                     }
                 }
 
-                if (_continue) {
+                if (_continue)
                     return false;
-                }
             }
-            
+
             return true;
         }
+
+        static uint32_t get_rabin_trys(const uint32_t _bits) noexcept
+        {
+            return static_cast<uint32_t>(std::log(std::pow(_bits, 3)));
+        }
+
+        template<class _char, bool _throw, class ostream = std::ostream>
+        friend ostream& operator<<(ostream& out, const basic_rsa<_char, _throw>& rsa)
+        {
+            out << "Charset  : " << typeid(_char).name() << '\n';
+            out << "Keysize  : " << rsa.keysize() << '\n';
+            out << "Blocksize: " << rsa.blocksize() << " or " << rsa.blocksize() / (8 * sizeof(_char)) << ' ' << typeid(_char).name() << "`s\n";
+            out << "Setupdone: " << (rsa.setupdone() == true ? "true" : "false") << "\n\n";
+            out << "P: " << rsa.p << "\n\n";
+            out << "Q: " << rsa.q << "\n\n";
+            out << "N: " << rsa.n << "\n\n";
+            out << "E: " << rsa.e << "\n\n";
+            out << "D: " << rsa.d << "\n\n";
+            return out;
+        }
     };
-}
-
-template<class Ty, class ostream>
-constexpr ostream& operator<<(ostream& out, const std::vector<Ty>& vec)
-{
-    for (size_t i = 0, end = vec.size() - 1; i < end; ++i) {
-        out << vec[i] << ", ";
-    }
-    return out << vec.back();
-}
-
-template<class _char, bool _throw, class ostream>
-constexpr ostream& operator<<(ostream& out, const RSA::basic_rsa<_char, _throw>& rsa)
-{
-    out << "Charset  : " << typeid(_char).name() << '\n';
-    out << "Keysize  : " << rsa.keysize() << '\n';
-    out << "Blocksize: " << rsa.blocksize() << '\n';
-    out << "Setupdone: " << (rsa.setupdone() == true ? "true" : "false") << "\n\n";
-    out << "P: " << rsa.p << "\n\n";
-    out << "Q: " << rsa.q << "\n\n";
-    out << "N: " << rsa.n << "\n\n";
-    out << "E: " << rsa.e << "\n\n"; 
-    out << "D: " << rsa.d << "\n\n";
-    return out;
 }
 
 #endif
