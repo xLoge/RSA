@@ -252,6 +252,7 @@ namespace RSA
         bool m_setupdone = false;
         uint32_t m_blocksize = DEFAULT_BLOCKSIZE;
         uint32_t m_bits = DEFAULT_BITS;
+        uint32_t m_trys = DEFAULT_TRYS;
 
     public:
         uint32_t e = 0;
@@ -261,47 +262,67 @@ namespace RSA
         std::tuple<number_t&, number_t&> private_key{ d, n };
 
     public:
-        constexpr basic_rsa() :m_bits(3072), m_blocksize(256) {
+        constexpr basic_rsa() :m_bits(3072), m_blocksize(256), m_trys(20) {
 
         }
 
-        constexpr basic_rsa(const uint32_t _bits, const uint32_t _blocksize = DEFAULT_BLOCKSIZE) {
-            set(_bits, _blocksize);
+        constexpr basic_rsa(const uint32_t _bits, const uint32_t _blocksize = DEFAULT_BLOCKSIZE, const uint32_t _trys = DEFAULT_TRYS) {
+            set(_bits, _blocksize, _trys);
         }
 
+        // Import values from exported RSA file
         constexpr basic_rsa(const std::string_view& _file) {
             import_file(_file);
         }
 
+        // Import values from exported RSA file
         constexpr basic_rsa(std::ifstream& _file) {
             import_file(_file);
         }
 
+        // Import values from other RSA class
         constexpr basic_rsa(const _export& _key) {
             import_key(_key);
         }
 
+        // Check if setup() is already done
         constexpr operator bool() const noexcept
         {
             return m_setupdone;
         }
 
+        // Check if setup() is already done
         constexpr bool setupdone() const noexcept
         {
             return m_setupdone;
         }
 
+        // The bits of the generated primes
         constexpr uint32_t blocksize() const noexcept
         {
             return m_blocksize;
         }
 
+        // The bits of the generated primes
         constexpr uint32_t keysize() const noexcept
         {
             return m_bits;
         }
 
-        constexpr void set(uint32_t _bits = DEFAULT_BITS, uint32_t _blocksize = DEFAULT_BLOCKSIZE)
+        // The current amouth of Miller Rabin tests
+        constexpr uint32_t trys() const noexcept
+        {
+            return m_trys;
+        }
+
+        // How likely the numbers generated are prime in percent
+        constexpr double precision() const noexcept
+        {
+            return std::pow(2, static_cast<long long>(m_trys) * -1) * 100;
+        }
+        
+        // Set new keysize, blocksize and trys
+        constexpr void set(uint32_t _bits = DEFAULT_BITS, uint32_t _blocksize = DEFAULT_BLOCKSIZE, uint32_t _trys = DEFAULT_TRYS)
         {
             constexpr uint32_t _size = 8 * char_size;
             constexpr uint32_t _mod  = 8 * char_size;
@@ -361,16 +382,31 @@ namespace RSA
                 }
             }
 
+            if (_trys == DEFAULT_TRYS) {
+                m_trys = get_rabin_trys(m_bits);
+            }
+            else {
+                m_trys = _trys;
+            }
+
             m_bits = _bits;
             m_blocksize = _blocksize;
         }
 
+        // Set how many Miller Rabin tests to perform
+        constexpr void set_trys(const uint32_t _trys)
+        {
+            m_trys = _trys;
+        }
+
+        // Import file from a filepath
         bool import_file(const std::string_view& _filename)
         {
             std::ifstream _file(_filename.data());
             return import_file(_file);
         }
 
+        // Import file from an ifstream
         bool import_file(std::ifstream& _file)
         {
             if (_file.good() == false) {
@@ -418,12 +454,14 @@ namespace RSA
             return true;
         }
 
+        // Export current setup to a filepath
         bool export_file(const std::string_view& _filename)
         {
             std::ofstream _file(_filename.data());
             return export_file(_file);
         }
 
+        // Export current setup to an ostream
         bool export_file(std::ofstream& _file)
         {
             if (m_setupdone == false) {
@@ -451,6 +489,7 @@ namespace RSA
             return true;
         }
 
+        // Import setup from other RSA class export
         void import_key(const _export& _key)
         {
             p = std::get<0>(_key);
@@ -462,25 +501,23 @@ namespace RSA
             m_blocksize = std::get<6>(_key);
         }
 
+        // Export current setup
         _export export_key()
         {
             return { p, q, n, d, e, m_bits, m_blocksize };
         }
 
-        void setup(uint32_t _trys = DEFAULT_TRYS) noexcept
+        // Generate the primes ( Call before encrypt )
+        void setup() noexcept
         {
-            if (_trys == DEFAULT_TRYS) {
-                _trys = get_rabin_trys(m_bits);
-            }
-
             m_setupdone = false;
 
             while (true)
             {
-                const auto pair = generate_prime_pair(m_bits, _trys);
+                const auto pair = generate_prime_pair(m_bits, m_trys);
 
                 p = pair.first;
-                q = pair.first;
+                q = pair.second;
 
                 n = p * q;
 
@@ -502,6 +539,7 @@ namespace RSA
             m_setupdone = true;
         }
 
+        // Encrypts a string
         std::vector<number_t> encrypt(const string_view& _str, const std::tuple<uint32_t&, number_t&>& _public_key) const
         {
             auto pow_block = [_public_key](const number_t& _block) noexcept -> number_t {
@@ -529,6 +567,7 @@ namespace RSA
             return result;
         }
 
+        // Decrypts the encrypted blocks
         string decrypt(const std::vector<number_t>& _encrypted) const
         {
             auto decrypt_block = [this](const number_t& _block) noexcept -> string
@@ -576,6 +615,7 @@ namespace RSA
             return decrypted;
         }
 
+        // Creates the blocks for encryption
         std::vector<number_t> create_blocks(const string_view& _str) const noexcept
         {
             std::string msg;
@@ -623,6 +663,7 @@ namespace RSA
         }
 
     private:
+        // Check if setup() has been called
         void __forceinline check_setup() const
         {
             if (m_setupdone == false) {
@@ -630,6 +671,7 @@ namespace RSA
             }
         }
 
+        // Calculate the extended Euclidean algorithm
         static number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) noexcept
         {
             if (a == 0) {
@@ -647,6 +689,7 @@ namespace RSA
             return gcd;
         };
 
+        // Calculate modular multiplicative inverse of e and phi
         static number_t inverse_mod(const number_t& e, const number_t& phi) noexcept
         {
             number_t x = 0, y = 0;
@@ -656,85 +699,77 @@ namespace RSA
             return 0;
         }
 
-        static number_t random_number(const size_t _bits) noexcept
+        // Generate random primelike string with X bits
+        static std::string random_primish_number(const size_t _bits) noexcept
         {
             std::mt19937_64 gen(std::random_device{ }());
             std::uniform_int_distribution<int> dist('0', '9');
 
-            const size_t bytes = _bits >> 3;
+            const size_t bytes = _bits / 8;
 
             std::string str(bytes, 0);
 
-            for (char& c : str) {
-                c = static_cast<char>(dist(gen));
+            for (char& ch : str) {
+                ch = static_cast<char>(dist(gen));
             }
 
-            while (str.at(0) == '0') {
-                str.at(0) = static_cast<char>(dist(gen));
+            while (str.front() == '0') {
+                str.front() = static_cast<char>(dist(gen));
             }
 
-            return number_t(str.c_str());
+            while (str.back() != '1' && str.back() != '3' && str.back() != '7' && str.back() != '9') {
+                str.back() = static_cast<char>(dist(gen));
+            }
+
+            return str;
         }
 
-        static std::pair<number_t, number_t> generate_prime_pair(size_t _bits, const size_t _trys) noexcept
+        // Generate 2 primes p and q
+        static std::pair<number_t, number_t> generate_prime_pair(const size_t _bits, const size_t _trys) noexcept
         {
-            number_t p, q;
+            number_t p = 0, q = 0;
+
+            const int _MIMA = (_bits / 8) / 4;
 
             std::mt19937_64 mt(std::random_device{ }());
-            std::uniform_int_distribution<uint32_t> dist(0, _bits / 8);
+            std::uniform_int_distribution<int> dist(_MIMA * -1, _MIMA);
 
-            uint32_t rand_p = dist(mt), rand_q = dist(mt);
+            const int _SP = _bits + dist(mt), _SQ = _bits + dist(mt);
 
-            while (rand_p % 8 || rand_q % 8) {
-                if (rand_p % 8)
-                    ++rand_p;
-                if (rand_q % 8)
-                    ++rand_q;
-            }
-
-            _bits += rand_p;
-
-            bool has_p = false, has_q = false;
-
-            auto search_thread = [&]() noexcept -> void
+            auto search_thread = [&](const size_t bits, number_t& X) noexcept -> void
             {
-                number_t num = random_number(_bits);
+                number_t possible_prime;
 
-                do 
+                while (X.is_zero())
                 {
-                    if (is_prime(num, _trys)) {
-                        if (!has_p) {
-                            has_p = true;
-                            p = num;
-                            _bits -= rand_p;
-                            _bits += rand_q;
-                            continue;
-                        }
+                    possible_prime.assign(random_primish_number(bits));
 
-                        if (!has_q) {
-                            has_q = true;
-                            q = num;
+                    if (is_prime(possible_prime, _trys))
+                    {
+                        if (X.is_zero()) {
+                            X = possible_prime;
                         }
 
                         return;
                     }
-                    else {
-                        num = random_number(_bits);
-                    }
-                } while (!has_p || !has_q);
+                }
             };
 
-            std::vector< std::future<void> > threads;
+            std::vector<std::future<void>> threads;
 
-            for (size_t i = 0; i < thread_count; ++i)
-                threads.push_back(std::async(std::launch::async, search_thread));
+            for (uint32_t i = 0; i < thread_count / 2; ++i) {
+                threads.push_back(std::async(std::launch::async, search_thread, _SP, std::ref(p)));
+                threads.push_back(std::async(std::launch::async, search_thread, _SQ, std::ref(q)));
+            }
 
-            for (const std::future<void>& thread : threads)
+            for (const auto& thread : threads) {
                 thread.wait();
+            }
 
             return std::make_pair(std::move(p), std::move(q));
         }
 
+        // Check if number is prime
         static bool is_prime(const number_t& _num, const size_t _trys) noexcept
         {
             // Small Test
@@ -791,11 +826,13 @@ namespace RSA
             return true;
         }
 
+        // Get a good amouth of Miller Rabin test for X bits
         static uint32_t get_rabin_trys(const uint32_t _bits) noexcept
         {
             return static_cast<uint32_t>(std::log(std::pow(_bits, 3)));
         }
 
+        // Output for RSA class
         template<class _char, bool _throw, class ostream = std::ostream>
         friend ostream& operator<<(ostream& out, const basic_rsa<_char, _throw>& rsa)
         {
