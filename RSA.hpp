@@ -11,6 +11,7 @@
 #include <vector>
 #include <future>
 #include <thread>
+#include <mutex>
 
 namespace RSA
 {
@@ -318,7 +319,7 @@ namespace RSA
         // How likely the numbers generated are prime in percent
         constexpr double precision() const noexcept
         {
-            return std::pow(2, static_cast<long long>(m_trys) * -1) * 100;
+            return 100.0 - (std::pow<double, double>(2, static_cast<long long>(m_trys) * -1) * 100.0);
         }
         
         // Set new keysize, blocksize and trys
@@ -727,16 +728,7 @@ namespace RSA
         // Generate 2 primes p and q
         static std::pair<number_t, number_t> generate_prime_pair(const size_t _bits, const size_t _trys) noexcept
         {
-            number_t p = 0, q = 0;
-
-            const int _MIMA = (_bits / 8) / 4;
-
-            std::mt19937_64 mt(std::random_device{ }());
-            std::uniform_int_distribution<int> dist(_MIMA * -1, _MIMA);
-
-            const int _SP = _bits + dist(mt), _SQ = _bits + dist(mt);
-
-            auto search_thread = [&](const size_t bits, number_t& X) noexcept -> void
+            auto search_thread = [_trys](const size_t bits, number_t& X, std::mutex& lock) noexcept -> void
             {
                 number_t possible_prime;
 
@@ -746,20 +738,33 @@ namespace RSA
 
                     if (is_prime(possible_prime, _trys))
                     {
-                        if (X.is_zero()) {
-                            X = possible_prime;
+                        lock.lock();
+                        {
+                            if (X.is_zero())
+                                X = possible_prime;
                         }
+                        lock.unlock();
 
                         return;
                     }
                 }
             };
 
+            number_t p = 0, q = 0;
+
+            std::mt19937_64 mt(std::random_device{ }());
+            std::uniform_int_distribution<int> dist((_bits / 64) * -1, _bits / 64);
+
+            const int _SP = _bits + dist(mt), _SQ = _bits + dist(mt);
+
+            std::mutex p_lock;
+            std::mutex q_lock;
+
             std::vector<std::future<void>> threads;
 
             for (uint32_t i = 0; i < thread_count / 2; ++i) {
-                threads.push_back(std::async(std::launch::async, search_thread, _SP, std::ref(p)));
-                threads.push_back(std::async(std::launch::async, search_thread, _SQ, std::ref(q)));
+                threads.push_back(std::async(std::launch::async, search_thread, _SP, std::ref(p), std::ref(p_lock)));
+                threads.push_back(std::async(std::launch::async, search_thread, _SQ, std::ref(q), std::ref(q_lock)));
             }
 
             for (const auto& thread : threads) {
@@ -769,7 +774,7 @@ namespace RSA
             return std::make_pair(std::move(p), std::move(q));
         }
 
-        // Check if number is prime
+        // Check if X number is prime with Y Miller Rabin trys
         static bool is_prime(const number_t& _num, const size_t _trys) noexcept
         {
             // Small Test
@@ -839,6 +844,8 @@ namespace RSA
             out << "Charset  : " << typeid(_char).name() << '\n';
             out << "Keysize  : " << rsa.keysize() << '\n';
             out << "Blocksize: " << rsa.blocksize() << " or " << rsa.blocksize() / (8 * sizeof(_char)) << ' ' << typeid(_char).name() << "`s\n";
+            out << "Trys     : " << rsa.trys() << '\n';
+            out << "Precision: " << rsa.precision() << '%' << '\n';
             out << "Setupdone: " << (rsa.setupdone() == true ? "true" : "false") << "\n\n";
             out << "P: " << rsa.p << "\n\n";
             out << "Q: " << rsa.q << "\n\n";
