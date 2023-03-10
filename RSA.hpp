@@ -383,15 +383,15 @@ namespace RSA
                 }
             }
 
+            m_bits = _bits;
+            m_blocksize = _blocksize;
+
             if (_trys == DEFAULT_TRYS) {
                 m_trys = get_rabin_trys(m_bits);
             }
             else {
                 m_trys = _trys;
             }
-
-            m_bits = _bits;
-            m_blocksize = _blocksize;
         }
 
         // Set how many Miller Rabin tests to perform
@@ -759,7 +759,7 @@ namespace RSA
             number_t p = 0, q = 0;
 
             std::mt19937_64 mt(std::random_device{ }());
-            std::uniform_int_distribution<int32_t> dist((_bits / 64) * -1, _bits / 64);
+            std::uniform_int_distribution<int32_t> dist(((_bits / 64) * -1) - 8, (_bits / 64) + 8);
 
             const int32_t _SP = _bits + dist(mt), _SQ = _bits + dist(mt);
 
@@ -839,8 +839,7 @@ namespace RSA
         // Get a good amouth of Miller Rabin test for X bits
         static uint32_t get_rabin_trys(const uint64_t _bits) noexcept
         {
-            const auto bits = _bits * _bits * _bits;
-            return static_cast<uint32_t>((std::log10(_bits * _bits * _bits)) * 1.5);
+            return static_cast<uint32_t>(std::log2(std::sqrt(_bits)) * 3.0);
         }
 
         // Output for RSA class
