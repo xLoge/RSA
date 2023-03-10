@@ -1,7 +1,5 @@
 # RSA-Encryption
 
-Note that it needs the boost library ( https://www.boost.org/ ).
-
 * Support for char, wchar_t, char8_t, char16_t and char32_t
 * Automatic error handeling
 * Multithreaded
@@ -26,15 +24,4 @@ int main()
 
 * Tested on I5 12400F (6 Cores 12 Threads with 4 Miller Rabin iterations)
 
-```
-128   BIT Key AVG of 100000 runs:   0.417ms
-256   BIT Key AVG of 100000 runs:   0.998ms
-512   BIT Key AVG of 100000 runs:   3.096ms
-1024  BIT Key AVG of 10000  runs:   14.06ms
-2048  BIT Key AVG of 1000   runs:   104.8ms
-3072  BIT Key AVG of 1000   runs:   358.1ms
-4096  BIT Key AVG of 1000   runs:   1004.ms
-8192  BIT Key AVG of 10     runs:   14445ms 
-16384 BIT Key AVG of 10     runs:  109905ms
-```
-
+* MPZ Version is as fast as Openssl
