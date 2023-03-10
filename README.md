@@ -22,6 +22,4 @@ int main()
 
 # Speed
 
-* Tested on I5 12400F (6 Cores 12 Threads with 4 Miller Rabin iterations)
-
 * MPZ Version is as fast as Openssl
