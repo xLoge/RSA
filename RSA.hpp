@@ -15,6 +15,8 @@
 
 namespace RSA
 {
+    static constexpr uint32_t Auto = static_cast<uint32_t>(-1);
+
     template<class, bool>
     class basic_rsa;
 
@@ -394,10 +396,22 @@ namespace RSA
             }
         }
 
+        // Set the size of the key
+        constexpr void set_keysize(const uint32_t _bits)
+        {
+            set(_bits, m_blocksize, m_trys);
+        }
+
+        // Set the size of each block
+        constexpr void set_blocksize(const uint32_t _blocksize)
+        {
+            set(m_bits, _blocksize, m_trys);
+        }
+
         // Set how many Miller Rabin tests to perform
         constexpr void set_trys(const uint32_t _trys)
         {
-            m_trys = _trys;
+            set(m_bits, m_blocksize, _trys);
         }
 
         // Import file from a filepath
