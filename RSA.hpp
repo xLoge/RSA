@@ -580,7 +580,7 @@ namespace RSA
         {
             check_setup();
 
-            auto decrypt_block = [this, d, n](const number_t& _block) noexcept -> string
+            auto decrypt_block = [this](const number_t& _block) noexcept -> string
             {
                 const std::string decrypted = boost::multiprecision::powm(_block, d, n).convert_to<std::string>();
 
