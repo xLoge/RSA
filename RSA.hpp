@@ -13,6 +13,10 @@
 #include <thread>
 #include <mutex>
 
+#ifndef _NODISCARD
+    #define _NODISCARD [[nodiscard]]
+#endif
+
 namespace RSA
 {
     static constexpr uint32_t Auto = static_cast<uint32_t>(-1);
@@ -20,21 +24,31 @@ namespace RSA
     template<class, bool>
     class basic_rsa;
 
+    // char, no throw
     using RSA = basic_rsa<char, false>;
+    // char, throw
     using tRSA = basic_rsa<char, true>;
 
+    // wchar_t, no throw
     using wRSA = basic_rsa<wchar_t, false>;
+    // wchar_t, throw
     using wtRSA = basic_rsa<wchar_t, true>;
     
 #ifdef __cpp_char8_t
+    // char8_t, no throw
     using u8RSA = basic_rsa<char8_t, false>;
+    // char8_t, throw
     using u8tRSA = basic_rsa<char8_t, true>;
 #endif
 
+    // char16_t, no throw
     using u16RSA = basic_rsa<char16_t, false>;
+    // char16_t, throw
     using u16tRSA = basic_rsa<char16_t, true>;
 
+    // char32_t, no throw
     using u32RSA = basic_rsa<char32_t, false>;
+    // char32_t, throw
     using u32tRSA = basic_rsa<char32_t, true>;
 
     typedef boost::multiprecision::cpp_int number_t;
@@ -43,7 +57,7 @@ namespace RSA
     {
         // * Decimal to number
         template <class Ty = int64_t>
-        constexpr Ty dton(const char* str) {
+        _NODISCARD constexpr Ty dton(const char* str) {
             constexpr Ty _max = std::numeric_limits<Ty>::max();
 
             bool _negative = false;
@@ -75,7 +89,7 @@ namespace RSA
 
         // * Hex to number
         template <class Ty = int64_t>
-        constexpr Ty hton(const char* str)
+        _NODISCARD constexpr Ty hton(const char* str)
         {
             constexpr Ty _max = std::numeric_limits<Ty>::max();
 
@@ -116,118 +130,6 @@ namespace RSA
 
             return result;
         }
-
-        namespace base64
-        {
-            std::string encode(const std::string data) {
-                constexpr char sEncodingTable[] = {
-                  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-                  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-                  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-                  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-                  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-                  'w', 'x', 'y', 'z', '0', '1', '2', '3',
-                  '4', '5', '6', '7', '8', '9', '+', '/'
-                };
-
-                const uint64_t in_len = data.size();
-                const uint64_t out_len = 4 * ((in_len + 2) / 3);
-                std::string ret(out_len, '\0');
-                uint64_t i;
-                char* p = const_cast<char*>(ret.c_str());
-
-                for (i = 0; i < in_len - 2; i += 3) {
-                    *p++ = sEncodingTable[(data[i] >> 2) & 0x3F];
-                    *p++ = sEncodingTable[((data[i] & 0x3) << 4) | ((int32_t)(data[i + 1] & 0xF0) >> 4)];
-                    *p++ = sEncodingTable[((data[i + 1] & 0xF) << 2) | ((int32_t)(data[i + 2] & 0xC0) >> 6)];
-                    *p++ = sEncodingTable[data[i + 2] & 0x3F];
-                }
-                if (i < in_len) {
-                    *p++ = sEncodingTable[(data[i] >> 2) & 0x3F];
-                    if (i == (in_len - 1)) {
-                        *p++ = sEncodingTable[((data[i] & 0x3) << 4)];
-                        *p++ = '=';
-                    }
-                    else {
-                        *p++ = sEncodingTable[((data[i] & 0x3) << 4) | ((int32_t)(data[i + 1] & 0xF0) >> 4)];
-                        *p++ = sEncodingTable[((data[i + 1] & 0xF) << 2)];
-                    }
-                    *p++ = '=';
-                }
-
-                return ret;
-            }
-
-            std::string decode(const std::string& input) {
-                constexpr uint8_t kDecodingTable[] = {
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
-                  52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
-                  64,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-                  15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
-                  64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-                  41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-                  64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
-                };
-
-                std::string out;
-
-                uint64_t in_len = input.size();
-                if (in_len % 4 != 0) return "Input data size is not a multiple of 4";
-
-                uint64_t out_len = in_len / 4 * 3;
-                if (input.at(in_len - 1) == '=') out_len--;
-                if (input.at(in_len - 2) == '=') out_len--;
-
-                out.resize(out_len);
-
-                for (uint64_t i = 0, j = 0; i < in_len;) {
-                    uint32_t a = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int32_t>(input.at(i++))];
-                    uint32_t b = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int32_t>(input.at(i++))];
-                    uint32_t c = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int32_t>(input.at(i++))];
-                    uint32_t d = input.at(i) == '=' ? 0 & i++ : kDecodingTable[static_cast<int32_t>(input.at(i++))];
-
-                    uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
-
-                    if (j < out_len) out[j++] = (triple >> 2 * 8) & 0xFF;
-                    if (j < out_len) out[j++] = (triple >> 1 * 8) & 0xFF;
-                    if (j < out_len) out[j++] = (triple >> 0 * 8) & 0xFF;
-                }
-
-                return out;
-            }
-        }
-    }
-
-    template<class _char>
-    constexpr uint32_t blocksize_for(const _char* const str, const uint64_t count) noexcept {
-        auto _val = count * 8;
-        while (_val % (16 * sizeof(_char))) { _val += 8; };
-        return _val;
-    }
-
-    template<class _char>
-    constexpr uint32_t blocksize_for(const _char* const str) noexcept {
-        return blocksize_for<_char>(str, std::char_traits<_char>::length(str));
-    }
-
-    template<class _char>
-    constexpr uint32_t blocksize_for(const std::basic_string<_char>& str) noexcept {
-        return blocksize_for(str.data(), str.size());
-    }
-
-    template<class _char>
-    constexpr uint32_t blocksize_for(const std::basic_string_view<_char>& str) noexcept {
-        return blocksize_for(str.data(), str.size());
     }
     
     template<class _char, bool _throw>
@@ -238,22 +140,23 @@ namespace RSA
     template <class char_type = char, bool throw_errors = false> 
     class basic_rsa
     {
-    protected:
-        constexpr static inline uint32_t DEFAULT_BITS = static_cast<uint32_t>(3072);
-        constexpr static inline uint32_t DEFAULT_TRYS = static_cast<uint32_t>(-1);
-        constexpr static inline uint32_t DEFAULT_BLOCKSIZE = static_cast<uint32_t>(-1);
-    
     private:
+        
+        constexpr static inline auto one_in_block_size = std::numeric_limits<char_type>::digits10 + 2;
         constexpr static inline auto char_size = sizeof(char_type);
         const static inline auto thread_count = (std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency();
 
-        typedef std::tuple<number_t&, number_t&, number_t&, number_t&, uint32_t&, uint32_t&, uint32_t&> export_t;
+        typedef std::tuple<number_t, number_t, number_t, number_t, uint32_t, uint32_t> export_t;
         using string = std::basic_string<char_type>;
         using string_view = std::basic_string_view<char_type>;
 
+    protected:
+        constexpr static inline uint32_t DEFAULT_BITS = static_cast<uint32_t>(3072);
+        constexpr static inline uint32_t DEFAULT_TRYS = static_cast<uint32_t>(-1);
+        constexpr static inline uint32_t MIN_BLOCKSIZE = static_cast<uint32_t>(one_in_block_size);
+
     private:
         bool m_setupdone = false;
-        uint32_t m_blocksize = DEFAULT_BLOCKSIZE;
         uint32_t m_bits = DEFAULT_BITS;
         uint32_t m_trys = DEFAULT_TRYS;
 
@@ -265,12 +168,12 @@ namespace RSA
         std::tuple<number_t&, number_t&> private_key{ d, n };
 
     public:
-        constexpr basic_rsa() :m_bits(3072), m_blocksize(256), m_trys(20) {
+        constexpr basic_rsa() :m_bits(3072), m_trys(17) {
 
         }
 
-        constexpr basic_rsa(const uint32_t _bits, const uint32_t _blocksize = DEFAULT_BLOCKSIZE, const uint32_t _trys = DEFAULT_TRYS) {
-            set(_bits, _blocksize, _trys);
+        constexpr basic_rsa(const uint32_t _bits, const uint32_t _trys = DEFAULT_TRYS) {
+            set(_bits, _trys);
         }
 
         // Import values from exported RSA file
@@ -289,107 +192,66 @@ namespace RSA
         }
 
         // Check if setup() is already done
-        constexpr operator bool() const noexcept
+        _NODISCARD constexpr operator bool() const noexcept
         {
             return m_setupdone;
         }
 
         // Check if setup() is already done
-        constexpr bool setupdone() const noexcept
+        _NODISCARD constexpr bool setupdone() const noexcept
         {
             return m_setupdone;
         }
 
         // The bits of the generated primes
-        constexpr uint32_t blocksize() const noexcept
-        {
-            return m_blocksize;
-        }
-
-        // The bits of the generated primes
-        constexpr uint32_t keysize() const noexcept
+        _NODISCARD constexpr uint32_t keysize() const noexcept
         {
             return m_bits;
         }
 
         // The current amouth of Miller Rabin tests
-        constexpr uint32_t trys() const noexcept
+        _NODISCARD constexpr uint32_t trys() const noexcept
         {
             return m_trys;
         }
 
         // How likely the numbers generated are prime in percent
-        constexpr double_t precision() const noexcept
+        _NODISCARD constexpr double_t precision() const noexcept
         {
             return 100.0 - (std::pow(2, static_cast<int64_t>(m_trys) * -1) * 100.0);
         }
         
         // Set new keysize, blocksize and trys
-        constexpr void set(uint32_t _bits = DEFAULT_BITS, uint32_t _blocksize = DEFAULT_BLOCKSIZE, uint32_t _trys = DEFAULT_TRYS)
+        constexpr void set(uint32_t _bits = DEFAULT_BITS, uint32_t _trys = DEFAULT_TRYS) noexcept(!throw_errors)
         {
-            constexpr uint32_t _size = 8 * char_size;
-            constexpr uint32_t _mod  = 8 * char_size;
-            constexpr uint32_t _min_blocksize = 16 * char_size;
-            const uint32_t _max_blocksize = _blocksize * 4;
-
-            if (_blocksize == 0) {
-                throw std::invalid_argument("block size can`t be 0");
-            }
-            
             if (_bits == 0) {
-                throw std::invalid_argument("key size can`t be 0");
-            }
-
-            if (_blocksize == DEFAULT_BLOCKSIZE) {
-                _blocksize = _min_blocksize;
-                
-                while (_blocksize * 4 < _bits) {
-                    _blocksize += _size;
-                    if (_blocksize >= 256) {
-                        break;
-                    }
-                }
-            }
-            else if (_blocksize < _min_blocksize) {
                 if constexpr (throw_errors) {
-                    throw std::invalid_argument("block size should`t be 8 because each character will represent one number and thats equal to plain text (NOT SECURE!)");
+                    throw std::invalid_argument("key size can`t be 0");
                 }
 
-                _blocksize = _min_blocksize;
+                _bits = DEFAULT_BITS;
             }
-            else if (_blocksize > _max_blocksize) {
-                _blocksize = _max_blocksize;
-            }
-            
-            while (_bits % _mod != 0 || _blocksize % _mod != 0) {
+
+            if (_trys == 0) {
                 if constexpr (throw_errors) {
-                    throw std::invalid_argument("both key and block size have to be dividable by 8");
+                    throw std::invalid_argument("can`t have 0 trys");
                 }
-                if (_bits % _mod != 0) {
-                    ++_bits;
-                }
-                if (_blocksize % _mod != 0) {
-                    ++_blocksize;
-                }
+
+                _trys = DEFAULT_TRYS;
             }
-            
-            while (_bits < _blocksize * 4) {
+
+            if (_bits % 8 != 0) {
                 if constexpr (throw_errors) {
-                    throw std::runtime_error("key size can`t be smaller than the block size * 4 (It would cause undefined behaviour)");
+                    throw std::invalid_argument("keysize has to be dividable by 8");
                 }
-                else if (_blocksize > _min_blocksize) {
-                    _blocksize -= _size;
-                }
-                else {
-                    _bits += _size;
-                }
+
+                _bits = (8 - _bits % 8);
             }
 
             m_bits = _bits;
-            m_blocksize = _blocksize;
 
             if (_trys == DEFAULT_TRYS) {
-                m_trys = get_rabin_trys(m_bits);
+                m_trys = get_rabin_trys(_bits);
             }
             else {
                 m_trys = _trys;
@@ -399,19 +261,13 @@ namespace RSA
         // Set the size of the key
         constexpr void set_keysize(const uint32_t _bits)
         {
-            set(_bits, m_blocksize, m_trys);
-        }
-
-        // Set the size of each block
-        constexpr void set_blocksize(const uint32_t _blocksize)
-        {
-            set(m_bits, _blocksize, m_trys);
+            set(_bits, m_trys);
         }
 
         // Set how many Miller Rabin tests to perform
         constexpr void set_trys(const uint32_t _trys)
         {
-            set(m_bits, m_blocksize, _trys);
+            set(m_bits, _trys);
         }
 
         // Import file from a filepath
@@ -439,34 +295,45 @@ namespace RSA
             } while (_line != "-----BEGIN EXPORT-----");
 
             if (std::getline(_file, _line))
-                p.assign(detail::base64::decode(_line));
+                p.assign(_line);
 
             if (std::getline(_file, _line))
-                q.assign(detail::base64::decode(_line));
+                q.assign(_line);
 
             if (std::getline(_file, _line))
-                n.assign(detail::base64::decode(_line));
+                n.assign(_line);
 
             if (std::getline(_file, _line))
-                d.assign(detail::base64::decode(_line));
+                d.assign(_line);
 
             if (std::getline(_file, _line))
-                e = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
+                e = detail::dton<uint32_t>(_line.c_str());
 
             if (std::getline(_file, _line))
-                m_bits = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
-
-            if (std::getline(_file, _line))
-                m_blocksize = detail::dton<uint32_t>(detail::base64::decode(_line).c_str());
+                m_bits = detail::dton<uint32_t>(_line.c_str());
 
             _file.close();
             
-            // Check
-            set(m_bits, m_blocksize);
+            set(m_bits);
 
             m_setupdone = true;
 
             return true;
+        }
+
+        // Import setup from other RSA class export
+        void import_key(const export_t& _key)
+        {
+            p = std::get<0>(_key);
+            q = std::get<1>(_key);
+            n = std::get<2>(_key);
+            d = std::get<3>(_key);
+            e = std::get<4>(_key);
+            m_bits = std::get<5>(_key);
+
+            set(m_bits);
+
+            m_setupdone = true;
         }
 
         // Export current setup to a filepath
@@ -489,13 +356,12 @@ namespace RSA
 
             _file << "-----BEGIN EXPORT-----\n";
 
-            _file << detail::base64::encode(p.str()) << '\n';
-            _file << detail::base64::encode(q.str()) << '\n';
-            _file << detail::base64::encode(n.str()) << '\n';
-            _file << detail::base64::encode(d.str()) << '\n';
-            _file << detail::base64::encode(std::to_string(e)) << '\n';
-            _file << detail::base64::encode(std::to_string(m_bits)) << '\n';
-            _file << detail::base64::encode(std::to_string(m_blocksize)) << '\n';
+            _file << p.str() << '\n';
+            _file << q.str() << '\n';
+            _file << n.str() << '\n';
+            _file << d.str() << '\n';
+            _file << std::to_string(e) << '\n';
+            _file << std::to_string(m_bits) << '\n';
 
             _file << "-----END EXPORT-----\n";
 
@@ -504,24 +370,10 @@ namespace RSA
             return true;
         }
 
-        // Import setup from other RSA class export
-        void import_key(const export_t& _key)
-        {
-            p = std::get<0>(_key);
-            q = std::get<1>(_key);
-            n = std::get<2>(_key);
-            d = std::get<3>(_key);
-            e = std::get<4>(_key);
-            m_bits = std::get<5>(_key);
-            m_blocksize = std::get<6>(_key);
-
-            set(m_bits, m_blocksize, m_trys);
-        }
-
         // Export current setup
-        const export_t export_key()
+        _NODISCARD const export_t export_key()
         {
-            return { p, q, n, d, e, m_bits, m_blocksize };
+            return { p, q, n, d, e, m_bits };
         }
 
         // Generate the primes
@@ -542,27 +394,33 @@ namespace RSA
 
                 e = 65537;
 
-                while (boost::multiprecision::gcd(e, phi) != 1) {
-                    ++e;
+                if (boost::multiprecision::gcd(e, phi) != 1) {
+                    e = 2;
+                    while (boost::multiprecision::gcd(e, phi) != 1) {
+                        ++e;
+                    }
                 }
-
+                
                 d = inverse_mod(e, phi);
 
                 if ((e * d) % phi == 1) {
                     break;
                 }
             }
-            
+
             m_setupdone = true;
         }
 
         // Encrypts a string
-        std::vector<number_t> encrypt(const string_view& _str, const std::tuple<uint32_t&, number_t&>& _public_key) const
+        _NODISCARD std::vector<number_t> encrypt(const string_view& _str, const std::tuple<uint32_t&, number_t&>& _public_key)
         {
             check_setup();
 
-            auto pow_block = [_public_key](const number_t& _block) noexcept -> number_t {
-                return boost::multiprecision::powm(_block, std::get<0>(_public_key), std::get<1>(_public_key));
+            const uint32_t& e = std::get<0>(_public_key);
+            const number_t& n = std::get<1>(_public_key);
+
+            auto pow_block = [e, n](const number_t& _block) noexcept -> number_t {
+                return boost::multiprecision::powm(_block, e, n);
             };
 
             if (_str.empty()) {
@@ -572,7 +430,7 @@ namespace RSA
                 return { };
             }
 
-            const auto blocks = create_blocks(_str);
+            const auto blocks = create_blocks(_str, n, m_bits);
 
             std::vector<std::future<number_t>> threads;
 
@@ -590,7 +448,7 @@ namespace RSA
         }
 
         // Decrypts the encrypted blocks
-        string decrypt(const std::vector<number_t>& _encrypted) const
+        _NODISCARD string decrypt(const std::vector<number_t>& _encrypted) const
         {
             check_setup();
 
@@ -598,11 +456,11 @@ namespace RSA
             {
                 const std::string decrypted = boost::multiprecision::powm(_block, d, n).convert_to<std::string>();
 
-                string result; result.reserve(m_blocksize);
+                string result; result.reserve(decrypted.size());
 
-                for (uint32_t i = 0; decrypted.at(i) != '0' || i > m_blocksize;)
+                for (uint32_t i = 0; decrypted.at(i) != '0' || i > decrypted.size();)
                 {
-                    uint16_t _len = decrypted.at(i++) - '0';
+                    uint8_t _len = decrypted.at(i++) - '0';
 
                     if (decrypted.at(i) == '0' && _len > 1) {
                         const auto _chr = decrypted.substr(++i, --_len);
@@ -627,7 +485,7 @@ namespace RSA
                 threads.push_back(std::async(std::launch::async, decrypt_block, _encrypted.at(i)));
             }
 
-            string decrypted; decrypted.reserve(_encrypted.size() * m_blocksize * char_size);
+            string decrypted; decrypted.reserve(_encrypted.size() * char_size);
 
             for (auto& thread : threads) {
                 decrypted.append(thread.get());
@@ -636,23 +494,64 @@ namespace RSA
             return decrypted;
         }
 
-        // Creates the blocks for encryption
-        std::vector<number_t> create_blocks(const string_view& _str) const noexcept
+    private:
+        // Check if setup() has been called
+        void __forceinline check_setup() const
         {
-            std::string msg; msg.reserve(m_blocksize * char_size);
+            if (m_setupdone == false) {
+                throw std::exception("You have to call setup() before you use the class");
+            }
+        } 
 
-            std::vector<std::string> blocks;
+        // Creates the blocks for encryption
+        _NODISCARD static std::vector<number_t> create_blocks(const string_view& _str, const number_t& _n, const uint32_t _keysize) noexcept
+        {
+            uint32_t blocksize = std::max(_keysize, MIN_BLOCKSIZE);
 
-            for (uint32_t i = 0;;)
+            std::vector<number_t> blocks;
+            std::string msg; msg.reserve(blocksize * char_size);
+            uint32_t i = 0;
+
+            auto check_for_n = [_n, &blocksize](const number_t& _check) noexcept -> bool
+            {
+                if (_n < _check) {
+                    blocksize -= one_in_block_size;
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            };
+
+            auto push_block = [&msg, &blocks, &i, check_for_n]() noexcept -> bool
+            {
+                number_t block(msg);
+
+                const bool valid = check_for_n(block);
+
+                if (valid) {
+                    blocks.push_back(block);
+                }
+                else {
+                    i = 0;
+                    blocks.clear();
+                }
+
+                msg.clear();
+
+                return valid;
+            };
+
+            while (true)
             {
                 const std::string    num = std::to_string(_str.at(i));
                 const bool      negative = (num.front() == '-');
                 const uint32_t  nextsize = msg.size() + num.size() + static_cast<int32_t>(negative) + 1;
 
-                if (nextsize > m_blocksize) {
+                if (nextsize > blocksize) {
                     msg.push_back('0');
-                    blocks.push_back(msg);
-                    msg.clear();
+                    if (!push_block())
+                        continue;
                 }
 
                 msg.append( std::to_string(num.size()) );
@@ -667,31 +566,20 @@ namespace RSA
 
                 if (++i == _str.size()) {
                     msg.push_back('0');
-                    blocks.push_back(msg);
-                    break;
+                    if (!push_block()) {
+                        continue;
+                    }
+                    else {
+                        break;
+                    }
                 }
             }
 
-            std::vector<number_t> results; results.reserve(blocks.size() * sizeof(number_t));
-
-            for (const auto& str : blocks) {
-                results.emplace_back(str);
-            }
-
-            return results;
-        }
-
-    private:
-        // Check if setup() has been called
-        void __forceinline check_setup() const
-        {
-            if (m_setupdone == false) {
-                throw std::exception("You have to call setup() before you use the class");
-            }
+            return blocks;
         }
 
         // Calculate the extended Euclidean algorithm
-        static number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) noexcept
+        _NODISCARD static number_t egcd(const number_t& a, const number_t& b, number_t& x, number_t& y) noexcept
         {
             if (a == 0) {
                 x = 0;
@@ -709,7 +597,7 @@ namespace RSA
         };
 
         // Calculate modular multiplicative inverse of e and phi
-        static number_t inverse_mod(const number_t& e, const number_t& phi) noexcept
+        _NODISCARD static number_t inverse_mod(const number_t& e, const number_t& phi) noexcept
         {
             number_t x = 0, y = 0;
             if (egcd(e, phi, x, y) == 1) {
@@ -719,7 +607,7 @@ namespace RSA
         }
 
         // Generate random primelike string with X bits
-        static std::string random_primish_number(const uint32_t _bits) noexcept
+        _NODISCARD static std::string random_primish_number(const uint32_t _bits) noexcept
         {
             std::mt19937_64 gen(std::random_device{ }());
             std::uniform_int_distribution<int32_t> dist('0', '9');
@@ -744,7 +632,7 @@ namespace RSA
         }
 
         // Generate 2 primes p and q
-        static std::pair<number_t, number_t> generate_prime_pair(const uint32_t _bits, const uint32_t _trys) noexcept
+        _NODISCARD static std::pair<number_t, number_t> generate_prime_pair(const uint32_t _bits, const uint32_t _trys) noexcept
         {
             auto search_thread = [_trys](const uint32_t bits, number_t& X, std::mutex& lock) noexcept -> void
             {
@@ -795,7 +683,7 @@ namespace RSA
         }
 
         // Check if X number is prime with Y Miller Rabin trys
-        static bool is_prime(const number_t& _num, const uint32_t _trys) noexcept
+        _NODISCARD static bool is_prime(const number_t& _num, const uint32_t _trys) noexcept
         {
             for (uint32_t i = 2; i < 10000; ++i)
             {
@@ -851,9 +739,9 @@ namespace RSA
         }
 
         // Get a good amouth of Miller Rabin test for X bits
-        static uint32_t get_rabin_trys(const uint64_t _bits) noexcept
+        _NODISCARD static uint32_t get_rabin_trys(const uint64_t _bits) noexcept
         {
-            return static_cast<uint32_t>(std::log2(std::sqrt(_bits)) * 3.0);
+            return static_cast<uint32_t>(2 + std::log2(std::sqrt(_bits)) * 3.0);
         }
 
         // Output for RSA class
@@ -862,7 +750,6 @@ namespace RSA
         {
             out << "Charset  : " << typeid(_char).name() << '\n';
             out << "Keysize  : " << rsa.keysize() << '\n';
-            out << "Blocksize: " << rsa.blocksize() << " or " << rsa.blocksize() / (8 * sizeof(_char)) << ' ' << typeid(_char).name() << "`s\n";
             out << "Trys     : " << rsa.trys() << '\n';
             out << "Precision: " << rsa.precision() << '%' << '\n';
             out << "Setupdone: " << (rsa.setupdone() == true ? "true" : "false") << "\n\n";
