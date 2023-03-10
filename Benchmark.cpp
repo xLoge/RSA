@@ -2,6 +2,14 @@
 #include <chrono>
 #include "RSA.hpp"
 
+template <class vec, class ostr>
+ostr& operator<<(ostr& out, std::vector<vec> _vec) {
+	for (uint64_t i = 0; i < _vec.size() - 1; ++i) {
+		out << _vec.at(i);
+	}
+	return out << _vec.back();
+}
+
 class Timer
 {
 private:
@@ -96,7 +104,7 @@ void test1()
 			{
 				enc = rsa.encrypt(message, rsa.public_key);
 
-		std::cout << "Encypted: " << enc << '\n';
+				std::cout << "Encypted: " << enc << '\n';
 			}
 		);
 
@@ -121,7 +129,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(128);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -131,7 +139,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(256);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -140,7 +148,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(512);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -149,7 +157,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(1024);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -158,7 +166,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(2048);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -167,7 +175,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(3072);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 
@@ -176,11 +184,11 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(4096);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
-	
-		Benchmark(
+
+	Benchmark(
 		"Generation of Key (6144 BIT)",
 		[]()
 		{
@@ -194,7 +202,7 @@ void test2()
 		[]()
 		{
 			RSA::RSA rsa(8192);
-	rsa.setup();
+			rsa.setup();
 		}
 	);
 }
@@ -205,6 +213,14 @@ int main()
 	//Note that these results are RANDOM in therms of time the setuperation can take one millisecond or just 100 second for example.
 	test1();
 	test2();
+
+	// Example
+
+	RSA::RSA rsa;
+	rsa.set_trys(RSA::Auto); // This is just to let u know that there is an Auto mode ( This is Default so you can remove the line )
+	rsa.setup();
+
+	std::cout << rsa;
 
 	std::cin.get();
 }
