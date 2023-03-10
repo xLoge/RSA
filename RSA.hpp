@@ -682,28 +682,14 @@ namespace RSA
             return std::make_pair(std::move(p), std::move(q));
         }
 
-        // Check if X number is prime with Y Miller Rabin trys
-        _NODISCARD static bool is_prime(const number_t& _num, const uint32_t _trys) noexcept
+        // Miller Rabin test num X with Y tests
+        _NODISCARD static bool miller_rabin(const number_t& _num, const uint32_t _trys) noexcept
         {
-            for (uint32_t i = 2; i < 10000; ++i)
-            {
-                if (_num % i == 0)
-                {
-                    if (_num != i) {
-                        return false;
-                    }
-                    else {
-                        break;
-                    }
-                }
-            }
-
             const number_t d_base = _num - 1;
             number_t d = d_base;
 
             uint32_t _divides = 0;
-            while (d % 2 == 0)
-            {
+            while (d % 2 == 0) {
                 d /= 2;
                 ++_divides;
             }
@@ -714,28 +700,45 @@ namespace RSA
             for (uint32_t i = 0; i < _trys; ++i)
             {
                 const number_t rand = dist(mt);
-                number_t test = boost::multiprecision::powm(dist(mt), d, _num);
+                number_t x = boost::multiprecision::powm(rand, d, _num);
 
-                if (test == 1 || test == d_base)
+                if (x == 1 || x == d_base)
                     continue;
 
-                bool _continue = true;
+                bool not_prime = true;
 
                 for (uint32_t j = 1; j < _divides; ++j)
                 {
-                    test = (test * test) % _num;
+                    x = (x * x) % _num;
 
-                    if (test == d_base) {
-                        _continue = false;
+                    if (x == d_base) {
+                        not_prime = false;
                         break;
                     }
                 }
 
-                if (_continue)
+                if (not_prime)
                     return false;
             }
 
             return true;
+        }
+
+        // Check if X number is prime with Y Miller Rabin tests
+        _NODISCARD static bool is_prime(const number_t& _num, const uint32_t _trys) noexcept
+        {
+            if (_num == 2 || _num == 3)
+                return true;
+
+            if (_num <= 1 || _num % 2 == 0 || _num % 3 == 0)
+                return false;
+
+            for (uint64_t i = 5; i < 1000; i += 6) {
+                if (_num % i == 0 || _num % (i + 2) == 0)
+                    return false;
+            }
+
+            return miller_rabin(_num, _trys);
         }
 
         // Get a good amouth of Miller Rabin test for X bits
