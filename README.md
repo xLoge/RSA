@@ -22,4 +22,4 @@ int main()
 
 # Speed
 
-* MPZ Version is as fast as Openssl
+* GMP Version is as fast as openssl
