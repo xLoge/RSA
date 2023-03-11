@@ -33,5 +33,5 @@ Just inlcude the file.
 
 * g++
 ```
-g++ -std=c++23 -Ofast main.cpp -o main -lgmpxx -lgmp
+g++ -std=c++17 -Ofast main.cpp -o main -lgmpxx -lgmp
 ```
