@@ -20,6 +20,18 @@ int main()
 }
 ```
 
-# Speed
+## Speed
 
 * GMP Version is as fast as openssl
+
+## Instalation
+
+* MSVC
+```
+Just inlcude the file.
+```
+
+* g++
+```
+g++ -std=c++23 -Ofast main.cpp -o main -lgmpxx -lgmp
+```
